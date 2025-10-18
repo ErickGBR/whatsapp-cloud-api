@@ -1,0 +1,30 @@
+{
+  "name": "whatsapp-cloud-api",
+  "version": "1.0.0",
+  "description": "chatbot whatsapp",
+  "main": "index.js",
+  "scripts": {
+    "start":"node src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ErickGBR/whatsapp-cloud-api.git"
+  },
+  "keywords": [
+    "whatsapp-api",
+    "npm",
+    "node.js",
+    "chatbot",
+    "rest"
+  ],
+  "author": "Erick Burgos",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ErickGBR/whatsapp-cloud-api/issues"
+  },
+  "homepage": "https://github.com/ErickGBR/whatsapp-cloud-api#readme",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
