@@ -14,6 +14,7 @@ const verifyToken = (req, res) => {
     console.log('WEBHOOK_VERIFIED');
     res.status(200).send(challenge);
   } else {
+    console.log('WEBHOOK_NOT_VERIFIED');
     res.sendStatus(403);
   }
 };
