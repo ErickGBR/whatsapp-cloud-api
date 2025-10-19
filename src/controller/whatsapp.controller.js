@@ -1,4 +1,5 @@
-
+const dotenv = require('dotenv');
+dotenv.config();
 /**
  * Handles the verification of the webhook token for WhatsApp Cloud API.
  * @param {Object} req - The request object.
