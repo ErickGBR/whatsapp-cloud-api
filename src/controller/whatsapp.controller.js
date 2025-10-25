@@ -21,35 +21,45 @@ const verifyToken = (req, res) => {
   }
 };
 
-
+/**
+ * Handles incoming messages from the WhatsApp Cloud API webhook.
+ * RecieverMessage
+ * 
+ */
 const RecieverMessage = (req, res) => {
   const body = req.body;
 
-  if (body.object) {
-    if (
-      body.entry &&
-      body.entry[0].changes &&
-      body.entry[0].changes[0] &&
-      body.entry[0].changes[0].value.messages &&
-      body.entry[0].changes[0].value.messages[0]
-    ) {
+  try {
 
-      const message_object = body.entry[0].changes[0].value.messages[0];
-      const phone_number_id =
-        body.entry[0].id;
-      const from = body.entry[0].changes[0].value.messages[0].from;
-      const msg_body =
-        body.entry[0].changes[0].value.messages[0].text.body;
+    if (body.object) {
+      if (
+        body.entry &&
+        body.entry[0].changes &&
+        body.entry[0].changes[0] &&
+        body.entry[0].changes[0].value.messages &&
+        body.entry[0].changes[0].value.messages[0]
+      ) {
 
-      console.log('Phone Number ID: ' + phone_number_id);
-      console.log('From: ' + from);
-      console.log('Message Body: ' + msg_body);
+        const message_object = body.entry[0].changes[0].value.messages[0];
+        const phone_number_id =
+          body.entry[0].id;
+        const from = body.entry[0].changes[0].value.messages[0].from;
+        const msg_body =
+          body.entry[0].changes[0].value.messages[0].text.body;
 
-      myConsole.log(message_object);
+        console.log('Phone Number ID: ' + phone_number_id);
+        console.log('From: ' + from);
+        console.log('Message Body: ' + msg_body);
+
+        myConsole.log(message_object);
+      }
+      res.sendStatus(200);
+    } else {
+      res.sendStatus(404);
     }
-    res.sendStatus(200);
-  } else {
-    res.sendStatus(404);
+  } catch (error) {
+    console.error('Error processing incoming message:', error);
+    res.sendStatus(500);
   }
 };
 
