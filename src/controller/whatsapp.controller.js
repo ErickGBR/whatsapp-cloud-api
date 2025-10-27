@@ -1,6 +1,8 @@
 const dotenv = require('dotenv');
 const fs = require('fs');
 const myConsole = new console.Console(fs.createWriteStream('./debug.log'));
+const whatsappService = require('../services/whatsappService');
+
 dotenv.config();
 /**
  * Handles the verification of the webhook token for WhatsApp Cloud API.
@@ -52,6 +54,12 @@ const RecieverMessage = (req, res) => {
         console.log('Message Body: ' + msg_body);
 
         myConsole.log(message_object);
+
+        whatsappService.sendMessage(
+          phone_number_id,
+          from,
+          'This is a response from your WhatsApp bot.'
+        );
       }
       res.sendStatus(200);
     } else {
