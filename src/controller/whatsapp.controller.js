@@ -12,7 +12,6 @@ dotenv.config();
 const verifyToken = (req, res) => {
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
-  const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 
   if (token === VERIFY_TOKEN) {
     console.log('WEBHOOK_VERIFIED');
@@ -30,6 +29,9 @@ const verifyToken = (req, res) => {
  */
 const RecieverMessage = (req, res) => {
   const body = req.body;
+
+
+
 
   try {
 
@@ -69,6 +71,7 @@ const RecieverMessage = (req, res) => {
     console.error('Error processing incoming message:', error);
     res.sendStatus(500);
   }
+
 };
 
 module.exports = {
