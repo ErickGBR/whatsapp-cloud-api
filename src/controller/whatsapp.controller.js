@@ -12,6 +12,7 @@ dotenv.config();
 const verifyToken = (req, res) => {
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
+  const VERIFY_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
 
   if (token === VERIFY_TOKEN) {
     console.log('WEBHOOK_VERIFIED');
@@ -29,9 +30,6 @@ const verifyToken = (req, res) => {
  */
 const RecieverMessage = (req, res) => {
   const body = req.body;
-
-
-
 
   try {
 
