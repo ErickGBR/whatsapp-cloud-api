@@ -1,6 +1,8 @@
 
 const https = require('https');
 
+
+
 const sendMessage = (phoneNumberId, to, message) => {
   const data = JSON.stringify({
     messaging_product: 'whatsapp',
@@ -13,6 +15,7 @@ const sendMessage = (phoneNumberId, to, message) => {
     port: 443,
     path: `/${phoneNumberId}/messages`,
     method: 'POST',
+    body: data,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
