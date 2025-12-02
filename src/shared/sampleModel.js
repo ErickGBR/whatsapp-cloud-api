@@ -49,6 +49,41 @@ const sampleVideo=(textResponse, number) => {
     return data
 };
 
+const sampleButton=(textResponse, number) => {
+  
+     const data = JSON.stringify({
+    messaging_product: 'whatsapp',
+    to: number,
+    type: 'interactive',
+    interactive: {
+      type: 'button',
+      body: {
+        text: 'Choose an option:'
+      },
+      action: {
+        buttons: [
+          {
+            type: 'reply',
+            reply: {
+              id: 'button1',
+              title: 'Option 1'
+            }
+          },
+          {
+            type: 'reply',
+            reply: {
+              id: 'button2',
+              title: 'Option 2'
+            }
+          }
+        ]
+      }
+    }
+  });
+
+    return data
+};
+
 const sampleDocument=(textResponse, number) => {
 
      const data = JSON.stringify({
@@ -56,6 +91,47 @@ const sampleDocument=(textResponse, number) => {
     to: number,
     type: 'document',
     document: { link: textResponse },
+  });
+
+    return data
+}
+
+
+const sampleList=(textResponse, number) => {
+  
+     const data = JSON.stringify({
+    messaging_product: 'whatsapp',
+    to: number,
+    type: 'list',
+    interactive: {
+      type: 'list',
+      body: {
+        text: 'Please select an option:'
+      },
+      footer: {
+        text: 'Footer text here'
+      },
+      action: {
+        button: 'View Options',
+        sections: [
+          {
+            title: 'Section 1',
+            rows: [
+              {
+                id: 'option1',
+                title: 'Option 1',
+                description: 'Description for option 1'
+              },
+              {
+                id: 'option2',
+                title: 'Option 2',
+                description: 'Description for option 2'
+              }
+            ]
+          }
+        ]
+      }
+    }
   });
 
     return data
@@ -67,5 +143,7 @@ module.exports = {
     sampleImage,
     sampleAudio,
     sampleVideo,
-    sampleDocument
+    sampleDocument,
+    sampleButton,
+    sampleList
 };
