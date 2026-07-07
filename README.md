@@ -1,103 +1,139 @@
-# 🤖 WhatsApp Cloud API Integration
+<div align="center">
 
-## Description
+# 🤖 WhatsApp Cloud API
 
-This repository contains the necessary code and documentation for integration with the **WhatsApp Cloud API**. This project facilitates the **programmatic sending and receiving of messages** on the WhatsApp platform, utilizing Meta's secure and scalable cloud infrastructure. It is designed to help businesses and developers build robust applications for customer support, notifications, and interactive conversations with users globally.
+### `Node.js · Express · Meta Graph API`
 
-The integration aims to be a robust, scalable, and easy-to-implement solution, managing authentication, webhook configuration, message templates, and message handling logic.
+> *Production-ready integration with WhatsApp Cloud API for automated messaging, webhook handling, and chatbot capabilities.*
+
+<br>
+
+[![License](https://img.shields.io/badge/License-ISC-22d3ee?style=flat-square)](LICENSE)
+[![Node](https://img.shields.io/badge/Node.js-20+-339933?style=flat-square&logo=nodedotjs&logoColor=white)](package.json)
+[![Express](https://img.shields.io/badge/Express-5.x-000000?style=flat-square&logo=express&logoColor=white)](package.json)
+
+</div>
+
+---
+
+## 📋 Descripción
+
+API REST para integración con **WhatsApp Cloud API** de Meta. Permite enviar y recibir mensajes de WhatsApp programáticamente, con soporte para webhooks en tiempo real, manejo de mensajes multimedia, y templates.
+
+Construido sobre la infraestructura cloud de Meta, diseñado para escalar desde un chatbot personal hasta un sistema de atención al cliente empresarial.
 
 ---
 
 ## ✨ Features
 
-* **Secure Authentication:** Uses **Access Tokens** for secure API calls.
-* **Message Sending:** Supports sending various types of messages, including **text, multimedia (images, documents), and message templates**.
-* **Webhook Receiver:** Includes a server implementation (e.g., **Node.js/Express**, **Python/Flask**) to receive **real-time message updates** and **status notifications** (delivered, read, failed).
-* **Template Management:** Shows how to use **pre-approved message templates** to start conversations outside the 24-hour customer service window.
-* **Scalable Architecture:** Designed to be deployed on cloud platforms (e.g., Heroku, AWS, Google Cloud) and handle high volume traffic.
+- **Envío de mensajes** — Texto, multimedia (imágenes, documentos), y message templates
+- **Webhook receptor** — Recibe mensajes entrantes y actualizaciones de estado en tiempo real
+- **Verificación automática** — Handshake de verificación webhook OOB (Out-of-Box)
+- **Multi-versión API** — Fallback automático entre versiones de Graph API (v12.0 → v22.0)
+- **Validación de números** — Formato internacional E.164 con sanitización
+- **Debug logging** — Registro detallado de mensajes entrantes en `debug.log`
+- **Health check** — Endpoint de monitoreo de estado del servidor
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
-Follow these steps to get your WhatsApp Cloud API project up and running.
+### Prerrequisitos
 
-### Prerequisites
+- Node.js 20+
+- Cuenta de **Meta Developer** (https://developers.facebook.com/)
+- Una **Meta App** con WhatsApp configurado
+- **Phone Number ID** y **Access Token** del dashboard de WhatsApp
+- **ngrok** (opcional, para probar webhooks localmente)
 
-You will need the following to get started:
+### Instalación
 
-1.  A **Meta Developer Account**.
-2.  A **Meta App** configured for the WhatsApp platform.
-3.  A **Phone Number ID** and a **Business Account ID** from your Meta App Dashboard.
-4.  A **Permanent Access Token** (for production environments).
-5.  A local development environment (e.g., **Node.js**, **Python**, **PHP** installed).
-6.  A tunneling service like **ngrok** to expose your local webhook endpoint to the internet (for testing).
+```bash
+git clone https://github.com/ErickGBR/whatsapp-cloud-api.git
+cd whatsapp-cloud-api
+npm install
+```
 
-### Installation and Configuration
+### Configuración
 
-1.  **Clone the repository:**
-    ```bash
-    git clone [YOUR_REPO_URL]
-    cd [YOUR_REPO_NAME]
-    ```
+Copia el archivo de entorno y completa tus credenciales:
 
-2.  **Install dependencies:**
-    *(Example for a Node.js project)*
-    ```bash
-    npm install
-    ```
-    *(Example for a Python project)*
-    ```bash
-    pip install -r requirements.txt
-    ```
+```bash
+cp .env.example .env
+```
 
-3.  **Configure Environment Variables:**
-    Create a file named `.env` in the root directory and add your credentials:
-    ```
-    # Replace with your actual values
-    ACCESS_TOKEN="YOUR_WHATSAPP_CLOUD_API_ACCESS_TOKEN"
-    PHONE_NUMBER_ID="YOUR_WHATSAPP_PHONE_NUMBER_ID"
-    VERIFY_TOKEN="YOUR_WEBHOOK_VERIFY_TOKEN"
-    PORT=3000
-    ```
+Edita `.env` con tus valores reales:
 
-4.  **Start the Server:**
-    ```bash
-    npm start # or python app.py
-    ```
+```env
+WHATSAPP_ACCESS_TOKEN=EAAT...tu_token_aqui
+PHONE_NUMBER_ID=123456789012345
+VERIFY_TOKEN=tu_token_verificacion_seguro
+PORT=3000
+```
 
-5.  **Configure Webhooks (to receive messages):**
-    * Start your tunneling service (e.g., `ngrok http 3000`).
-    * Take the **HTTPS URL** provided by ngrok.
-    * In the Meta App Dashboard → WhatsApp → Configuration, set the **Webhook Callback URL** to your ngrok URL plus the webhook route (e.g., `https://[YOUR_NGROK_ID].ngrok-free.app/webhook`).
-    * Set the **Verify Token** to the one you defined in your `.env` file.
+### Ejecución
+
+```bash
+# Producción
+npm start
+
+# Desarrollo (con hot-reload)
+npm run dev
+```
 
 ---
 
-## 📄 API Endpoints
+## 📡 API Endpoints
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/send-message` | Sends a text or template message to a specific recipient. |
-| `POST` | `/webhook` | Receives and processes incoming messages and status updates from WhatsApp. |
-| `GET` | `/webhook` | Used by WhatsApp for the initial webhook verification handshake. |
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `GET` | `/` | Health check del servidor |
+| `GET` | `/api/webhook` | Verificación webhook (WhatsApp handshake) |
+| `POST` | `/api/webhook` | Recibir mensajes y actualizaciones entrantes |
+| `POST` | `/api/send-message` | Enviar un mensaje de texto |
+| `GET` | `/api/phone-numbers` | Obtener números asociados a la cuenta |
+
+### Ejemplo: Enviar mensaje
+
+```bash
+curl -X POST http://localhost:3000/api/send-message \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to": "521234567890",
+    "message": "¡Hola desde la API! 🚀"
+  }'
+```
 
 ---
 
-## 🛠 Tech Stack
+## 🏗️ Arquitectura
 
-* **Language:** [Ex: Node.js]
-* **Framework:** [Ex: Express.js]
-* **API:** WhatsApp Cloud API (Meta)
+```
+src/
+├── index.js                    # Entry point — Express server
+├── routes/
+│   └── routes.js               # Definición de rutas
+├── controller/
+│   └── whatsapp.controller.js  # Lógica de handlers
+├── services/
+│   └── whatsappService.js      # Integración con Graph API
+└── shared/
+    └── sampleModel.js          # Modelos de ejemplo
+```
 
 ---
 
-## 🤝 Contributions
+## 🛠 Stack
 
-Contributions are welcome! Feel free to open an *issue* or submit a *pull request*.
+| Capa | Tecnología |
+|------|-----------|
+| Runtime | Node.js 20+ |
+| Framework | Express 5.x |
+| API | Meta WhatsApp Cloud API (Graph API) |
+| Logging | Debug file + console |
 
 ---
 
-## 📜 License
+## 📜 Licencia
 
-This project is licensed under the **MIT License** - see the `LICENSE` file for more details.
+ISC — Erick Burgos
