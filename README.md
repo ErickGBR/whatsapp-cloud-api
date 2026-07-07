@@ -16,37 +16,37 @@
 
 ---
 
-## 📋 Descripción
+## 📋 Description
 
-API REST para integración con **WhatsApp Cloud API** de Meta. Permite enviar y recibir mensajes de WhatsApp programáticamente, con soporte para webhooks en tiempo real, manejo de mensajes multimedia, y templates.
+REST API for integration with Meta's **WhatsApp Cloud API**. Enables programmatic sending and receiving of WhatsApp messages, with support for real-time webhooks, multimedia message handling, and message templates.
 
-Construido sobre la infraestructura cloud de Meta, diseñado para escalar desde un chatbot personal hasta un sistema de atención al cliente empresarial.
+Built on Meta's cloud infrastructure, designed to scale from a personal chatbot to an enterprise customer service system.
 
 ---
 
 ## ✨ Features
 
-- **Envío de mensajes** — Texto, multimedia (imágenes, documentos), y message templates
-- **Webhook receptor** — Recibe mensajes entrantes y actualizaciones de estado en tiempo real
-- **Verificación automática** — Handshake de verificación webhook OOB (Out-of-Box)
-- **Multi-versión API** — Fallback automático entre versiones de Graph API (v12.0 → v22.0)
-- **Validación de números** — Formato internacional E.164 con sanitización
-- **Debug logging** — Registro detallado de mensajes entrantes en `debug.log`
-- **Health check** — Endpoint de monitoreo de estado del servidor
+- **Message sending** — Text, multimedia (images, documents), and message templates
+- **Webhook receiver** — Receives incoming messages and status updates in real time
+- **Automatic verification** — OOB (Out-of-Box) webhook verification handshake
+- **Multi-version API** — Automatic fallback across Graph API versions (v12.0 → v22.0)
+- **Number validation** — E.164 international format with sanitization
+- **Debug logging** — Detailed incoming message logging to `debug.log`
+- **Health check** — Server status monitoring endpoint
 
 ---
 
 ## 🚀 Quick Start
 
-### Prerrequisitos
+### Prerequisites
 
 - Node.js 20+
-- Cuenta de **Meta Developer** (https://developers.facebook.com/)
-- Una **Meta App** con WhatsApp configurado
-- **Phone Number ID** y **Access Token** del dashboard de WhatsApp
-- **ngrok** (opcional, para probar webhooks localmente)
+- **Meta Developer** account (https://developers.facebook.com/)
+- A **Meta App** with WhatsApp configured
+- **Phone Number ID** and **Access Token** from the WhatsApp dashboard
+- **ngrok** (optional, for testing webhooks locally)
 
-### Instalación
+### Installation
 
 ```bash
 git clone https://github.com/ErickGBR/whatsapp-cloud-api.git
@@ -54,15 +54,15 @@ cd whatsapp-cloud-api
 npm install
 ```
 
-### Configuración
+### Configuration
 
-Copia el archivo de entorno y completa tus credenciales:
+Copy the environment file and fill in your credentials:
 
 ```bash
 cp .env.example .env
 ```
 
-Edita `.env` con tus valores reales:
+Edit `.env` with your actual values:
 
 ```env
 WHATSAPP_ACCESS_TOKEN=EAAT...tu_token_aqui
@@ -71,13 +71,13 @@ VERIFY_TOKEN=tu_token_verificacion_seguro
 PORT=3000
 ```
 
-### Ejecución
+### Running
 
 ```bash
-# Producción
+# Production
 npm start
 
-# Desarrollo (con hot-reload)
+# Development (with hot-reload)
 npm run dev
 ```
 
@@ -85,15 +85,15 @@ npm run dev
 
 ## 📡 API Endpoints
 
-| Método | Endpoint | Descripción |
+| Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/` | Health check del servidor |
-| `GET` | `/api/webhook` | Verificación webhook (WhatsApp handshake) |
-| `POST` | `/api/webhook` | Recibir mensajes y actualizaciones entrantes |
-| `POST` | `/api/send-message` | Enviar un mensaje de texto |
-| `GET` | `/api/phone-numbers` | Obtener números asociados a la cuenta |
+| `GET` | `/` | Server health check |
+| `GET` | `/api/webhook` | Webhook verification (WhatsApp handshake) |
+| `POST` | `/api/webhook` | Receive incoming messages and updates |
+| `POST` | `/api/send-message` | Send a text message |
+| `GET` | `/api/phone-numbers` | Get numbers associated with the account |
 
-### Ejemplo: Enviar mensaje
+### Example: Send message
 
 ```bash
 curl -X POST http://localhost:3000/api/send-message \
@@ -106,26 +106,26 @@ curl -X POST http://localhost:3000/api/send-message \
 
 ---
 
-## 🏗️ Arquitectura
+## 🏗️ Architecture
 
 ```
 src/
 ├── index.js                    # Entry point — Express server
 ├── routes/
-│   └── routes.js               # Definición de rutas
+│   └── routes.js               # Route definitions
 ├── controller/
-│   └── whatsapp.controller.js  # Lógica de handlers
+│   └── whatsapp.controller.js  # Handler logic
 ├── services/
-│   └── whatsappService.js      # Integración con Graph API
+│   └── whatsappService.js      # Graph API integration
 └── shared/
-    └── sampleModel.js          # Modelos de ejemplo
+    └── sampleModel.js          # Example models
 ```
 
 ---
 
 ## 🛠 Stack
 
-| Capa | Tecnología |
+| Layer | Technology |
 |------|-----------|
 | Runtime | Node.js 20+ |
 | Framework | Express 5.x |
@@ -134,6 +134,6 @@ src/
 
 ---
 
-## 📜 Licencia
+## 📜 License
 
 ISC — Erick Burgos

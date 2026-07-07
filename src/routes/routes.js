@@ -9,7 +9,20 @@ router.post('/webhook', WhatsAppController.receiverMessage);
 // Route for sending messages manually
 router.post('/send-message', WhatsAppController.sendMessage);
 
-// Route for debugging - get available phone numbers
+// Media message routes
+router.post('/send-image', WhatsAppController.sendImage);
+router.post('/send-document', WhatsAppController.sendDocument);
+router.post('/send-audio', WhatsAppController.sendAudio);
+router.post('/send-video', WhatsAppController.sendVideo);
+
+// Interactive message routes
+router.post('/send-button', WhatsAppController.sendButton);
+router.post('/send-list', WhatsAppController.sendList);
+
+// Message template routes
+router.post('/send-template', WhatsAppController.sendTemplate);
+
+// Route for debugging — get available phone numbers
 router.get('/phone-numbers', WhatsAppController.getPhoneNumbers);
 
 module.exports = router;

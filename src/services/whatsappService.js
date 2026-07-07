@@ -1,10 +1,12 @@
 const https = require('https');
-const dotenv = require('dotenv');
-
-dotenv.config();
 
 /**
- * Makes an HTTPS request to Facebook Graph API
+ * Makes an HTTPS request to Facebook Graph API.
+ * @param {string} method - HTTP method (GET, POST, etc.).
+ * @param {string} path - API path (e.g. '/v22.0/PHONE_NUMBER_ID/messages').
+ * @param {Object|null} data - Request body (for POST/PUT).
+ * @param {string} accessToken - WhatsApp access token.
+ * @returns {Promise<Object>} Parsed response body.
  */
 const makeRequest = (method, path, data, accessToken) => {
   return new Promise((resolve, reject) => {
@@ -56,7 +58,89 @@ const makeRequest = (method, path, data, accessToken) => {
 };
 
 /**
- * Verify phone number ID by fetching its information
+ * Returns the list of API versions to try, starting with the configured one.
+ * @returns {string[]} API version strings (e.g. ['v22.0', 'v21.0', ...]).
+ */
+const getApiVersions = () => {
+  return process.env.API_VERSION
+    ? [process.env.API_VERSION]
+    : ['v22.0', 'v21.0', 'v20.0', 'v19.0', 'v18.0', 'v17.0', 'v16.0', 'v15.0', 'v14.0', 'v13.0', 'v12.0'];
+};
+
+/**
+ * Tries to send a WhatsApp message using multiple API versions and endpoint formats.
+ *
+ * @param {string} phoneNumberId - WhatsApp Business Phone Number ID.
+ * @param {string} to - Clean recipient phone number (digits only).
+ * @param {Object} data - The full request payload body.
+ * @param {string} actionLabel - Label for console logs (e.g. 'Sending Image').
+ * @returns {Promise<Object>} API response.
+ */
+const trySendWithFallback = (phoneNumberId, to, data, actionLabel) => {
+  return new Promise(async (resolve, reject) => {
+    const apiVersions = getApiVersions();
+    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+
+    if (!accessToken) {
+      reject(new Error('WHATSAPP_ACCESS_TOKEN not configured'));
+      return;
+    }
+
+    console.log(`\n=== ${actionLabel} ===`);
+    console.log(`To: ${to}`);
+    console.log(`Phone Number ID: ${phoneNumberId}`);
+
+    const tryRequest = async (versionIndex = 0) => {
+      const apiVersion = apiVersions[versionIndex];
+
+      const endpointFormats = [
+        `/${apiVersion}/${phoneNumberId}/messages`,
+        `/${apiVersion}/${phoneNumberId}`,
+      ];
+
+      console.log(`\nTrying API version: ${apiVersion}`);
+
+      for (let formatIndex = 0; formatIndex < endpointFormats.length; formatIndex++) {
+        const path = endpointFormats[formatIndex];
+        console.log(`Trying endpoint format ${formatIndex + 1}: https://graph.facebook.com${path}`);
+
+        try {
+          const result = await makeRequest('POST', path, data, accessToken);
+          console.log(`\n✓✓✓ SUCCESS! ${actionLabel} completed with ${apiVersion} using format ${formatIndex + 1} ✓✓✓`);
+          console.log(`Response:`, JSON.stringify(result, null, 2));
+          resolve(result);
+          return;
+        } catch (error) {
+          const errorMsg = error.body?.error?.message || error.body?.error || error.message || error.raw || JSON.stringify(error);
+          console.error(`✗ Failed with format ${formatIndex + 1} (HTTP ${error.statusCode || 'N/A'}):`, errorMsg);
+
+          if (formatIndex === endpointFormats.length - 1 && versionIndex === apiVersions.length - 1) {
+            const finalError = error.body?.error || { message: errorMsg };
+            reject(new Error(`All endpoint formats and API versions failed. Last error: HTTP ${error.statusCode || 'N/A'}: ${JSON.stringify(finalError)}`));
+            return;
+          }
+
+          if (formatIndex < endpointFormats.length - 1) {
+            continue;
+          } else if (versionIndex < apiVersions.length - 1) {
+            console.log(`\nTrying next API version...`);
+            await tryRequest(versionIndex + 1);
+            return;
+          }
+        }
+      }
+    };
+
+    await tryRequest(0);
+  });
+};
+
+/**
+ * Verify phone number ID by fetching its information.
+ * @param {string} phoneNumberId - WhatsApp Business Phone Number ID.
+ * @param {string} accessToken - WhatsApp access token.
+ * @param {string} apiVersion - API version string.
+ * @returns {Promise<boolean>} Whether the phone number ID is valid.
  */
 const verifyPhoneNumberId = async (phoneNumberId, accessToken, apiVersion) => {
   try {
@@ -70,27 +154,28 @@ const verifyPhoneNumberId = async (phoneNumberId, accessToken, apiVersion) => {
   }
 };
 
+/**
+ * Sends a text message.
+ * @param {string} phoneNumberId - WhatsApp Business Phone Number ID.
+ * @param {string} to - Recipient phone number.
+ * @param {string} message - Text message body.
+ * @returns {Promise<Object>} API response.
+ */
 const sendMessage = (phoneNumberId, to, message) => {
   return new Promise(async (resolve, reject) => {
-    // Clean phone number - remove + and any non-numeric characters
     const cleanTo = to.replace(/[^\d]/g, '');
-    
+
     const data = {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
       to: cleanTo,
       type: 'text',
-      text: { 
+      text: {
         preview_url: false,
-        body: message 
+        body: message,
       },
     };
 
-    // Try different API versions if one fails (most recent first)
-    const apiVersions = process.env.API_VERSION 
-      ? [process.env.API_VERSION] 
-      : ['v22.0', 'v21.0', 'v20.0', 'v19.0', 'v18.0', 'v17.0', 'v16.0', 'v15.0', 'v14.0', 'v13.0', 'v12.0'];
-    
     const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
 
     if (!accessToken) {
@@ -109,15 +194,16 @@ const sendMessage = (phoneNumberId, to, message) => {
     console.log(`   4. Get the correct Phone Number ID from: https://developers.facebook.com/apps/`);
     console.log(`      Go to: Your App > WhatsApp > API Setup > Phone number ID\n`);
 
+    const apiVersions = getApiVersions();
+
     const trySendMessage = async (versionIndex = 0) => {
       const apiVersion = apiVersions[versionIndex];
-      
-      // Try different endpoint formats
+
       const endpointFormats = [
-        `/${apiVersion}/${phoneNumberId}/messages`,  // Standard format
-        `/${apiVersion}/${phoneNumberId}`,  // Alternative format
+        `/${apiVersion}/${phoneNumberId}/messages`,
+        `/${apiVersion}/${phoneNumberId}`,
       ];
-      
+
       console.log(`\nTrying API version: ${apiVersion}`);
 
       for (let formatIndex = 0; formatIndex < endpointFormats.length; formatIndex++) {
@@ -125,26 +211,23 @@ const sendMessage = (phoneNumberId, to, message) => {
         console.log(`Trying endpoint format ${formatIndex + 1}: https://graph.facebook.com${path}`);
 
         try {
-          // Try to send the message
           const result = await makeRequest('POST', path, data, accessToken);
           console.log(`\n✓✓✓ SUCCESS! Message sent with ${apiVersion} using format ${formatIndex + 1} ✓✓✓`);
           console.log(`Response:`, JSON.stringify(result, null, 2));
           resolve(result);
-          return; // Success, exit the function
+          return;
         } catch (error) {
           const errorMsg = error.body?.error?.message || error.body?.error || error.message || error.raw || JSON.stringify(error);
           console.error(`✗ Failed with format ${formatIndex + 1} (HTTP ${error.statusCode || 'N/A'}):`, errorMsg);
-          
-          // If this is the last format and last version, reject
+
           if (formatIndex === endpointFormats.length - 1 && versionIndex === apiVersions.length - 1) {
             const finalError = error.body?.error || { message: errorMsg };
             reject(new Error(`All endpoint formats and API versions failed. Last error: HTTP ${error.statusCode || 'N/A'}: ${JSON.stringify(finalError)}`));
             return;
           }
-          
-          // Continue to next format or version
+
           if (formatIndex < endpointFormats.length - 1) {
-            continue; // Try next format
+            continue;
           } else if (versionIndex < apiVersions.length - 1) {
             console.log(`\nTrying next API version...`);
             await trySendMessage(versionIndex + 1);
@@ -154,18 +237,105 @@ const sendMessage = (phoneNumberId, to, message) => {
       }
     };
 
-    // Start trying with the first version
     await trySendMessage(0);
   });
 };
 
 /**
- * Get phone numbers associated with the WhatsApp Business Account
+ * Sends a media message (image, document, audio, or video).
+ *
+ * @param {string} phoneNumberId - WhatsApp Business Phone Number ID.
+ * @param {string} to - Recipient phone number.
+ * @param {string} type - Media type: 'image', 'document', 'audio', or 'video'.
+ * @param {string} mediaUrl - Public URL of the media file.
+ * @param {string} [caption] - Optional caption (for image, document, video).
+ * @returns {Promise<Object>} API response.
+ */
+const sendMedia = (phoneNumberId, to, type, mediaUrl, caption) => {
+  const cleanTo = to.replace(/[^\d]/g, '');
+
+  const data = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: cleanTo,
+    type: type,
+    [type]: {
+      link: mediaUrl,
+    },
+  };
+
+  // Caption is supported for image, document, and video (not audio)
+  if (caption && type !== 'audio') {
+    data[type].caption = caption;
+  }
+
+  return trySendWithFallback(phoneNumberId, cleanTo, data, `Sending ${type.charAt(0).toUpperCase() + type.slice(1)}`);
+};
+
+/**
+ * Sends an interactive message (button reply or list).
+ *
+ * @param {string} phoneNumberId - WhatsApp Business Phone Number ID.
+ * @param {string} to - Recipient phone number.
+ * @param {string} type - Interactive type: 'button' or 'list'.
+ * @param {Object} interactiveData - Interactive payload object (body, action, optional header/footer).
+ * @returns {Promise<Object>} API response.
+ */
+const sendInteractive = (phoneNumberId, to, type, interactiveData) => {
+  const cleanTo = to.replace(/[^\d]/g, '');
+
+  const data = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: cleanTo,
+    type: 'interactive',
+    interactive: interactiveData,
+  };
+
+  return trySendWithFallback(phoneNumberId, cleanTo, data, `Sending interactive ${type}`);
+};
+
+/**
+ * Sends a message template.
+ *
+ * @param {string} phoneNumberId - WhatsApp Business Phone Number ID.
+ * @param {string} to - Recipient phone number.
+ * @param {string} templateName - Name of the message template.
+ * @param {string} languageCode - Language code (e.g. 'en_US', 'es_MX').
+ * @param {Array} [components] - Optional array of template component objects.
+ * @returns {Promise<Object>} API response.
+ */
+const sendTemplate = (phoneNumberId, to, templateName, languageCode, components) => {
+  const cleanTo = to.replace(/[^\d]/g, '');
+
+  const data = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: cleanTo,
+    type: 'template',
+    template: {
+      name: templateName,
+      language: {
+        code: languageCode,
+      },
+    },
+  };
+
+  if (components && components.length > 0) {
+    data.template.components = components;
+  }
+
+  return trySendWithFallback(phoneNumberId, cleanTo, data, `Sending template "${templateName}"`);
+};
+
+/**
+ * Get phone numbers associated with the WhatsApp Business Account.
+ * @returns {Promise<Object>} Phone numbers data.
  */
 const getPhoneNumbers = async () => {
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
   const apiVersions = ['v22.0', 'v21.0', 'v20.0', 'v19.0', 'v18.0'];
-  
+
   if (!accessToken) {
     throw new Error('WHATSAPP_ACCESS_TOKEN not configured');
   }
@@ -173,8 +343,7 @@ const getPhoneNumbers = async () => {
   for (const apiVersion of apiVersions) {
     try {
       console.log(`Trying to get phone numbers with API version ${apiVersion}...`);
-      
-      // Try different endpoint formats
+
       const endpoints = [
         `/${apiVersion}/me?fields=id,name,phone_numbers{id,verified_name,display_phone_number}`,
         `/${apiVersion}/me/phone_numbers?fields=id,verified_name,display_phone_number`,
@@ -202,7 +371,9 @@ const getPhoneNumbers = async () => {
 
 module.exports = {
   sendMessage,
+  sendMedia,
+  sendInteractive,
+  sendTemplate,
   getPhoneNumbers,
   verifyPhoneNumberId,
 };
-
