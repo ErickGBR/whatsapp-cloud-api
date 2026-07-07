@@ -1,7 +1,7 @@
 {
   "name": "whatsapp-cloud-api",
   "version": "1.0.0",
-  "description": "chatbot whatsapp",
+  "description": "WhatsApp Cloud API — Node.js integration for messaging and webhooks",
   "main": "index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -27,7 +27,9 @@
   "homepage": "https://github.com/ErickGBR/whatsapp-cloud-api#readme",
   "dependencies": {
     "dotenv": "^17.2.3",
-    "express": "^5.1.0",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
     "nodemon": "^3.1.10"
   }
 }
