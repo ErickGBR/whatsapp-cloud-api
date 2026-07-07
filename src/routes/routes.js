@@ -4,7 +4,7 @@ const WhatsAppController = require('../controller/whatsapp.controller');
 
 // Webhook routes for receiving messages
 router.get('/webhook', WhatsAppController.verifyToken);
-router.post('/webhook', WhatsAppController.RecieverMessage);
+router.post('/webhook', WhatsAppController.receiverMessage);
 
 // Route for sending messages manually
 router.post('/send-message', WhatsAppController.sendMessage);

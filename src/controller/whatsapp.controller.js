@@ -28,7 +28,7 @@ const verifyToken = (req, res) => {
  * RecieverMessage
  * 
  */
-const RecieverMessage = (req, res) => {
+const receiverMessage = (req, res) => {
   const body = req.body;
 
   try {
@@ -229,7 +229,7 @@ const getPhoneNumbers = async (req, res) => {
 
 module.exports = {
   verifyToken,
-  RecieverMessage,
+  receiverMessage,
   sendMessage,
   getPhoneNumbers,
 };
