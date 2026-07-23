@@ -1,101 +1,214 @@
 import { Customer } from "../models/customer.model";
-import { Product } from "../models/product.model";
-import { Order } from "../models/order.model";
-import { OrderItem } from "../models/order-item.model";
-import { Payment } from "../models/payment.model";
+import { Ticket } from "../models/ticket.model";
+import { TicketMessage } from "../models/ticket-message.model";
 import { sendWhatsAppMessage } from "./whatsapp.service";
 import { aiService } from "./ai.service";
+import { ticketService } from "./ticket.service";
 import { productService } from "./product.service";
-import { cartService } from "./cart.service";
 import { scheduleService } from "./schedule.service";
-import { bitcoinService } from "./bitcoin.service";
 
+/**
+ * BotService — Support/Sales Agent Flow
+ * ---------------------------------------
+ * The bot acts as a first-line sales & support agent for a software
+ * development company. It handles simple inquiries via AI and escalates
+ * complex / human-requested conversations to a support ticket system.
+ *
+ * Flow:
+ *   1. Customer sends a message
+ *   2. If the customer has an open ticket → append message to ticket
+ *   3. If the message is a command (MENU / HELP / HOURS) → handle directly
+ *   4. Otherwise → AI generates a response via generateResponse()
+ *   5. If AI determines escalation is needed → create a ticket & notify customer
+ *   6. If no escalation → send AI response to customer
+ */
 export class BotService {
   async handleMessage(from: string, messageText: string, userName?: string): Promise<void> {
     try {
-      // Get or create customer
+      // ------------------------------------------------------------------
+      //  1. Get or create customer
+      // ------------------------------------------------------------------
       let customer = await Customer.findOne({ where: { phone: from } });
 
       if (!customer) {
         customer = await Customer.create({
           phone: from,
           name: userName || "Customer",
-          state: "menu",
+          state: "active",
         });
+      } else {
+        // Update name if provided
+        if (userName) {
+          customer.name = userName;
+        }
+        customer.state = "active";
+      }
+      customer.lastInteraction = new Date();
+      await customer.save();
+
+      // ------------------------------------------------------------------
+      //  2. Check if there is an OPEN ticket — append message & notify
+      // ------------------------------------------------------------------
+      const openTicket = await Ticket.findOne({
+        where: {
+          customerPhone: from,
+          status: ["open", "assigned", "in_progress"],
+        },
+      });
+
+      if (openTicket) {
+        await TicketMessage.create({
+          ticketId: openTicket.id,
+          sender: "customer",
+          content: messageText,
+        });
+
+        await sendWhatsAppMessage(
+          from,
+          "📩 Your message has been forwarded to the support team. They will respond shortly.\n\n" +
+          "If you need immediate assistance, please wait — a human agent will be with you as soon as possible."
+        );
+        return;
       }
 
-      // Check business hours (except for priority commands)
+      // ------------------------------------------------------------------
+      //  3. Check business hours (priority commands bypass)
+      // ------------------------------------------------------------------
       const upperMessage = messageText.toUpperCase().trim();
-      if (!this.isPriorityCommand(upperMessage) && !scheduleService.isOpen()) {
+      const command = this.parseCommand(upperMessage);
+
+      if (!command && !scheduleService.isOpen()) {
         await sendWhatsAppMessage(from, scheduleService.getOffHoursMessage());
         return;
       }
 
-      // Process message based on customer state
-      const customerState = customer.state || "menu";
-      let response = "";
-
-      switch (customerState) {
-        case "menu":
-          response = await this.handleMenuState(customer, upperMessage);
-          break;
-        case "catalog":
-          response = await this.handleCatalogState(customer, upperMessage, messageText);
-          break;
-        case "cart":
-          response = await this.handleCartState(customer, upperMessage, messageText);
-          break;
-        case "payment":
-          response = await this.handlePaymentState(customer, upperMessage, messageText);
-          break;
-        default:
-          response = await this.handleMenuState(customer, upperMessage);
-      }
-
-      // If no specific response, use AI
-      if (!response) {
-        response = await aiService.generateResponse(from, messageText);
-        // If AI suggests menu, update state
-        if (response.includes("*MENU*")) {
-          customer.state = "menu";
-          await customer.save();
-          response = this.getMainMenu();
+      // ------------------------------------------------------------------
+      //  4. Handle known commands directly (no AI needed)
+      // ------------------------------------------------------------------
+      if (command) {
+        const response = await this.handleCommand(command, customer);
+        if (response) {
+          await sendWhatsAppMessage(from, response);
         }
+        return;
       }
 
-      // Send response
-      if (response) {
-        await sendWhatsAppMessage(from, response);
+      // ------------------------------------------------------------------
+      //  5. Everything else → AI processing
+      // ------------------------------------------------------------------
+      const aiResponse = await aiService.generateResponse(from, messageText);
+
+      // ------------------------------------------------------------------
+      //  6. Escalation check — should a human take over?
+      // ------------------------------------------------------------------
+      if (aiService.shouldEscalate(messageText, aiResponse)) {
+        await this.handleEscalation(from, messageText, aiResponse, customer);
+        return;
+      }
+
+      // ------------------------------------------------------------------
+      //  7. No escalation → send AI response directly
+      // ------------------------------------------------------------------
+      const cleanResponse = aiResponse.replace(/__ESCALATE__/gi, "").trim();
+      if (cleanResponse) {
+        await sendWhatsAppMessage(from, cleanResponse);
       }
     } catch (error: any) {
       console.error("Error handling message:", error);
       await sendWhatsAppMessage(
         from,
-        "Sorry, an error occurred. Please try again or type *HELP*."
+        "❌ Sorry, an error occurred. Please try again or type *HELP* for assistance."
       );
     }
   }
 
-  private async handleMenuState(customer: Customer, message: string): Promise<string> {
-    switch (message) {
+  // ---------------------------------------------------------------
+  //  Escalation handler
+  // ---------------------------------------------------------------
+
+  /**
+   * Escalate the conversation to a human support agent:
+   *   1. Create a ticket with the customer's info
+   *   2. Store the customer message and AI response as ticket messages
+   *   3. Notify the customer that a human will assist them
+   */
+  private async handleEscalation(
+    from: string,
+    userMessage: string,
+    aiResponse: string,
+    customer: Customer,
+  ): Promise<void> {
+    // Create ticket
+    const ticket = await ticketService.create({
+      customerPhone: from,
+      customerName: customer.name,
+      subject: aiService.generateSubject(userMessage),
+      whatsappJid: from,
+      createdBy: "ai",
+      priority: "medium",
+    });
+
+    // Log customer message
+    await TicketMessage.create({
+      ticketId: ticket.id,
+      sender: "customer",
+      content: userMessage,
+    });
+
+    // Log AI response (so support can see what was already discussed)
+    await TicketMessage.create({
+      ticketId: ticket.id,
+      sender: "ai",
+      content: aiResponse,
+    });
+
+    // Increment ticket counter
+    customer.totalTickets = (customer.totalTickets || 0) + 1;
+    await customer.save();
+
+    // Notify customer via WhatsApp
+    await sendWhatsAppMessage(
+      from,
+      "🆘 *A support agent will assist you shortly.*\n\n" +
+      "Your request has been forwarded to our human support team. " +
+      "Please wait while we connect you with a representative who can help.\n\n" +
+      "📋 *Ticket created* — your conversation has been saved.\n" +
+      "We'll respond as soon as possible."
+    );
+  }
+
+  // ---------------------------------------------------------------
+  //  Command handling
+  // ---------------------------------------------------------------
+
+  /**
+   * Parse the raw message text to extract a known command string,
+   * or return null if it's a free-form inquiry (should go to AI).
+   */
+  private parseCommand(message: string): string | null {
+    const upper = message.toUpperCase().trim();
+
+    // Exact-match commands
+    const commands = [
+      "MENU", "HELP", "HOURS", "HORARIO",
+      "AYUDA", "CATALOG", "CATALOGO", "CATÁLOGO",
+      "PRODUCTS", "PRODUCTOS",
+    ];
+
+    if (commands.includes(upper)) {
+      return upper;
+    }
+
+    return null;
+  }
+
+  /**
+   * Execute a parsed command and return the response text.
+   */
+  private async handleCommand(command: string, customer: Customer): Promise<string> {
+    switch (command) {
       case "MENU":
-        customer.state = "menu";
-        await customer.save();
         return this.getMainMenu();
-
-      case "CATALOG":
-      case "CATALOGO":
-      case "CATÁLOGO":
-      case "PRODUCTS":
-        customer.state = "catalog";
-        await customer.save();
-        return await this.getCatalogMessage();
-
-      case "CART":
-      case "CARRITO":
-        customer.state = "cart";
-        await customer.save();
-        return await this.getCartMessage(customer.id);
 
       case "HELP":
       case "AYUDA":
@@ -103,187 +216,40 @@ export class BotService {
 
       case "HOURS":
       case "HORARIO":
-        return `⏰ *BUSINESS HOURS*\n\n${scheduleService.getOpeningHours()}\n(Monday to Friday)\n\nType *MENU* to go back.`;
+        return (
+          `⏰ *BUSINESS HOURS*\n\n` +
+          `${scheduleService.getOpeningHours()} (Monday to Friday)\n\n` +
+          `We are closed on weekends and public holidays.\n\n` +
+          `Type *MENU* to return to the main menu.`
+        );
+
+      case "CATALOG":
+      case "CATALOGO":
+      case "CATÁLOGO":
+      case "PRODUCTS":
+      case "PRODUCTOS":
+        return await this.getCatalogMessage();
 
       default:
-        // If not a recognized command, return nothing to use AI
         return "";
     }
   }
 
-  private async handleCatalogState(customer: Customer, upperMessage: string, originalMessage: string): Promise<string> {
-    if (upperMessage.startsWith("ADD") || upperMessage.startsWith("AGREGAR") || upperMessage.startsWith("AÑADIR")) {
-      const match = originalMessage.match(/\d+/);
-      if (match) {
-        const productId = parseInt(match[0]);
-        const product = await productService.getProductById(productId);
-        if (product) {
-          await cartService.addToCart(customer.id, productId);
-          return `✅ Product "${product.name}" added to cart.\n\nType *CART* to view your cart or *CATALOG* to continue browsing products.`;
-        }
-      }
-      return "❌ Product not found. Please enter the correct catalog number.";
-    }
-
-    if (upperMessage === "MENU") {
-      customer.state = "menu";
-      await customer.save();
-      return this.getMainMenu();
-    }
-
-    if (upperMessage === "CART" || upperMessage === "CARRITO") {
-      customer.state = "cart";
-      await customer.save();
-      return await this.getCartMessage(customer.id);
-    }
-
-    // Show catalog again
-    return await this.getCatalogMessage();
-  }
-
-  private async handleCartState(customer: Customer, upperMessage: string, originalMessage: string): Promise<string> {
-    if (upperMessage === "CHECKOUT" || upperMessage === "BUY" || upperMessage === "FINALIZAR" || upperMessage === "COMPRAR") {
-      const cartItems = await cartService.getCart(customer.id);
-      if (cartItems.length === 0) {
-        return "❌ Your cart is empty. Type *CATALOG* to add products.";
-      }
-
-      const total = await cartService.getCartTotal(customer.id);
-      
-      // Create order
-      const orderNumber = `ORD-${Date.now()}`;
-      const order = await Order.create({
-        customerId: customer.id,
-        orderNumber,
-        total,
-        status: "pending",
-      });
-
-      // Add items to order
-      for (const cartItem of cartItems) {
-        const product = await Product.findByPk(cartItem.productId);
-        if (product) {
-          await OrderItem.create({
-            orderId: order.id,
-            productId: product.id,
-            quantity: cartItem.quantity,
-            price: product.price,
-          });
-        }
-      }
-
-      // Clear cart
-      await cartService.clearCart(customer.id);
-
-      customer.state = "payment";
-      await customer.save();
-
-      return this.getPaymentOptions(orderNumber, total);
-    }
-
-    if (upperMessage.startsWith("REMOVE") || upperMessage.startsWith("ELIMINAR") || upperMessage.startsWith("QUITAR")) {
-      const match = originalMessage.match(/\d+/);
-      if (match) {
-        const productId = parseInt(match[0]);
-        await cartService.removeFromCart(customer.id, productId);
-        return await this.getCartMessage(customer.id);
-      }
-    }
-
-    if (upperMessage === "CLEAR" || upperMessage === "VACIAR") {
-      await cartService.clearCart(customer.id);
-      customer.state = "menu";
-      await customer.save();
-      return "🛒 Cart cleared.\n\nType *MENU* to return to the main menu.";
-    }
-
-    if (upperMessage === "CATALOG" || upperMessage === "CATÁLOGO" || upperMessage === "CATALOGO") {
-      customer.state = "catalog";
-      await customer.save();
-      return await this.getCatalogMessage();
-    }
-
-    if (upperMessage === "MENU") {
-      customer.state = "menu";
-      await customer.save();
-      return this.getMainMenu();
-    }
-
-    return await this.getCartMessage(customer.id);
-  }
-
-  private async handlePaymentState(customer: Customer, upperMessage: string, originalMessage: string): Promise<string> {
-    // Find the customer's pending order
-    const order = await Order.findOne({
-      where: { customerId: customer.id, status: "pending" },
-      order: [["createdAt", "DESC"]],
-    });
-
-    if (!order) {
-      customer.state = "menu";
-      await customer.save();
-      return this.getMainMenu();
-    }
-
-    if (upperMessage === "BITCOIN" || upperMessage === "BTC") {
-      const paymentInfo = await bitcoinService.generatePaymentAddress(order.id, parseFloat(order.total.toString()));
-      
-      await Payment.create({
-        orderId: order.id,
-        method: "bitcoin",
-        amount: order.total,
-        bitcoinAddress: paymentInfo.address,
-        status: "pending",
-      });
-
-      return bitcoinService.formatPaymentMessage(
-        paymentInfo.address,
-        parseFloat(order.total.toString()),
-        order.orderNumber
-      );
-    }
-
-    if (upperMessage.startsWith("TXID") || upperMessage.startsWith("ID")) {
-      // Customer is sending the Bitcoin TXID
-      const txId = originalMessage.replace(/^(TXID|ID)\s*/i, "").trim();
-      const payment = await Payment.findOne({
-        where: { orderId: order.id, status: "pending" },
-      });
-
-      if (payment && payment.method === "bitcoin") {
-        // In production, this would verify the transaction
-        payment.bitcoinTxId = txId;
-        payment.status = "confirmed";
-        await payment.save();
-
-        order.status = "paid";
-        await order.save();
-
-        customer.state = "menu";
-        await customer.save();
-
-        return `✅ Payment confirmed!\n\nOrder: ${order.orderNumber}\nAmount: $${order.total} USD\n\nThank you for your purchase. We'll be in touch soon.\n\nType *MENU* to continue.`;
-      }
-    }
-
-    if (upperMessage === "MENU") {
-      customer.state = "menu";
-      await customer.save();
-      return this.getMainMenu();
-    }
-
-    return this.getPaymentOptions(order.orderNumber, parseFloat(order.total.toString()));
-  }
+  // ---------------------------------------------------------------
+  //  Message builders
+  // ---------------------------------------------------------------
 
   private getMainMenu(): string {
     return (
-      "👋 *WELCOME TO OUR SOFTWARE DEVELOPMENT SERVICE*\n\n" +
-      "Select an option:\n\n" +
-      "1️⃣ *CATALOG* - View our products and services\n" +
-      "2️⃣ *CART* - View your shopping cart\n" +
-      "3️⃣ *HOURS* - Check business hours\n" +
-      "4️⃣ *HELP* - Information and help\n\n" +
-      "Type the command in uppercase (e.g., CATALOG)"
+      "👋 *CodeCraft Solutions* — Software Development Services\n\n" +
+      "I'm your virtual sales & support assistant. How can I help you?\n\n" +
+      "Available commands:\n" +
+      "• *CATALOG* — View our products and services\n" +
+      "• *HOURS* — Check business hours\n" +
+      "• *HELP* — Show help and tips\n\n" +
+      "💬 *Or just ask me anything!*\n" +
+      "For example: \"How much does a website cost?\" or \"Tell me about your ERP system.\"\n\n" +
+      "If you need to speak with a human agent, just let me know."
     );
   }
 
@@ -292,42 +258,22 @@ export class BotService {
     return productService.formatCatalogMessage(products);
   }
 
-  private async getCartMessage(customerId: number): Promise<string> {
-    const cartItems = await cartService.getCart(customerId);
-    return cartService.formatCartMessage(cartItems);
-  }
-
   private getHelpMessage(): string {
     return (
-      "❓ *HELP*\n\n" +
-      "Available commands:\n\n" +
-      "• *MENU* - View main menu\n" +
-      "• *CATALOG* - View product catalog\n" +
-      "• *CART* - View your cart\n" +
-      "• *ADD [number]* - Add product to cart\n" +
-      "• *CHECKOUT* - Complete purchase\n" +
-      "• *HOURS* - View business hours\n\n" +
-      "If you have any questions, type your query and our assistant will help you."
+      "❓ *HELP & SUPPORT*\n\n" +
+      "I'm an AI assistant here to help you with:\n\n" +
+      "💡 *Sales inquiries* — Pricing, product info, demos\n" +
+      "📋 *Catalog* — Browse our full product catalog\n" +
+      "🕐 *Business hours* — When we're available\n\n" +
+      "Commands:\n" +
+      "• *MENU* — Show main menu\n" +
+      "• *CATALOG* — Browse products with prices\n" +
+      "• *HOURS* — View business hours\n\n" +
+      "To speak with a *human agent*, just say:\n" +
+      "\"I want to speak to a person\" or \"Transfer me to an agent\"\n\n" +
+      "How can I assist you today?"
     );
-  }
-
-  private getPaymentOptions(orderNumber: string, total: number): string {
-    return (
-      `💰 *PAYMENT OPTIONS*\n\n` +
-      `Order: ${orderNumber}\n` +
-      `Total: $${total.toFixed(2)} USD\n\n` +
-      `Select payment method:\n\n` +
-      `🪙 *BITCOIN* - Pay with Bitcoin\n\n` +
-      `(More payment methods coming soon)\n\n` +
-      `Type *BITCOIN* to pay with Bitcoin or *MENU* to cancel.`
-    );
-  }
-
-  private isPriorityCommand(message: string): boolean {
-    const priorityCommands = ["MENU", "HELP", "HOURS", "HORARIO", "AYUDA"];
-    return priorityCommands.includes(message);
   }
 }
 
 export const botService = new BotService();
-
