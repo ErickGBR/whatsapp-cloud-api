@@ -1,3 +1,4 @@
+# WhatsApp Sales Bot — Backend API
 FROM node:18-alpine
 
 WORKDIR /app
