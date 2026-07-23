@@ -1,5 +1,4 @@
 import { Table, Column, Model, DataType, HasMany, PrimaryKey, AutoIncrement } from "sequelize-typescript";
-import { CartItem } from "./cart-item.model";
 import { Order } from "./order.model";
 
 @Table({ tableName: "customers" })
@@ -24,8 +23,14 @@ export class Customer extends Model {
   @Column({ type: DataType.TEXT, allowNull: true })
   context?: string; // JSON context to maintain conversation state
 
-  @HasMany(() => CartItem)
-  cartItems!: CartItem[];
+  @Column({ type: DataType.DATE, allowNull: true })
+  lastInteraction?: Date;
+
+  @Column({ type: DataType.INTEGER, defaultValue: 0 })
+  totalTickets!: number;
+
+  @Column({ type: DataType.TEXT, allowNull: true })
+  notes?: string;
 
   @HasMany(() => Order)
   orders!: Order[];
