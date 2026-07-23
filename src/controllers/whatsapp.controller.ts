@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { botService } from "../services/bot.service";
 import { productService } from "../services/product.service";
 
-// Webhook para recibir mensajes de WhatsApp
+// Webhook to receive WhatsApp messages
 export const webhook = async (req: Request, res: Response) => {
   try {
     const body = req.body;
@@ -16,7 +16,7 @@ export const webhook = async (req: Request, res: Response) => {
       }
     }
 
-    // Procesar mensajes entrantes
+    // Process incoming messages
     if (body.object === "whatsapp_business_account" && body.entry) {
       for (const entry of body.entry) {
         const changes = entry.changes;
@@ -27,7 +27,7 @@ export const webhook = async (req: Request, res: Response) => {
             const messageText = message.text?.body || "";
             const contact = change.value.contacts?.[0];
 
-            // Procesar mensaje con el bot
+            // Process message with the bot
             await botService.handleMessage(
               from,
               messageText,
@@ -45,7 +45,7 @@ export const webhook = async (req: Request, res: Response) => {
   }
 };
 
-// Endpoint para enviar mensajes manualmente (mantener compatibilidad)
+// Endpoint to send messages manually (maintains compatibility)
 export const sendMessage = async (req: Request, res: Response) => {
   const { to, message } = req.body;
   try {
@@ -57,7 +57,7 @@ export const sendMessage = async (req: Request, res: Response) => {
   }
 };
 
-// Endpoint para obtener contenido Markdown (mantener compatibilidad)
+// Endpoint to get Markdown content (maintains compatibility)
 export const getMdContent = (req: Request, res: Response) => {
   const { filename } = req.params;
   try {
@@ -69,7 +69,7 @@ export const getMdContent = (req: Request, res: Response) => {
   }
 };
 
-// Endpoint para inicializar productos (útil para setup)
+// Endpoint to initialize products (useful for setup)
 export const initProducts = async (req: Request, res: Response) => {
   try {
     await productService.initializeProducts();

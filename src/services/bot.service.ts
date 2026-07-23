@@ -84,6 +84,8 @@ export class BotService {
         return this.getMainMenu();
 
       case "CATALOG":
+      case "CATALOGO":
+      case "CATÁLOGO":
       case "PRODUCTS":
         customer.state = "catalog";
         await customer.save();
