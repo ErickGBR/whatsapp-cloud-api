@@ -1,3 +1,5 @@
+// This model is deprecated, use Customer instead
+// Kept for temporary compatibility
 import { Table, Column, Model, DataType } from "sequelize-typescript";
 
 @Table({ tableName: "users" })
