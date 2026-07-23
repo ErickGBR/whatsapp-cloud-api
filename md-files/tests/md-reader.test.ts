@@ -1,6 +1,6 @@
 import { readMarkdown } from "../../src/services/md-reader.service";
 
-test("Leer archivo markdown básico", () => {
+test("Read basic markdown file", () => {
   const content = readMarkdown("example.md");
   expect(content).toContain("#");
 });
