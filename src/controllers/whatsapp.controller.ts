@@ -57,18 +57,6 @@ export const sendMessage = async (req: Request, res: Response) => {
   }
 };
 
-// Endpoint to get Markdown content (maintains compatibility)
-export const getMdContent = (req: Request, res: Response) => {
-  const { filename } = req.params;
-  try {
-    const { readMarkdown } = require("../services/md-reader.service");
-    const content = readMarkdown(filename);
-    res.json({ success: true, content });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-};
-
 // Endpoint to initialize products (useful for setup)
 export const initProducts = async (req: Request, res: Response) => {
   try {
