@@ -1,51 +1,32 @@
-# WhatsApp Sales Bot - Software Development System
+# WhatsApp Sales Bot — AI Support + Dashboard
 
-An intelligent WhatsApp bot for selling software development services, featuring built-in AI (Hugging Face), product catalog, shopping cart, Bitcoin payments, and queue-based async processing. Connects via WhatsApp Web (QR code pairing) with Cloud API fallback for message delivery.
+An intelligent WhatsApp bot with an AI-powered sales and support agent, ticket management system, and a full-featured admin dashboard. Connects via WhatsApp Web (QR code pairing) with Cloud API fallback for message delivery.
 
-## 🚀 Features
+## Features
 
-- ✅ **Intelligent Chatbot** with AI (Hugging Face)
-- ✅ **Complete Product Catalog** with demos and images
-- ✅ **Functional Shopping Cart**
-- ✅ **Complete Order System**
-- ✅ **Bitcoin Payment** integrated
-- ✅ **Configurable Business Hours**
-- ✅ **SQLite Database** (relational)
-- ✅ **Redis** caching and queues
-- ✅ **Queue System** (Bull) for async processing
-- ✅ **Dockerized** with Docker Compose
+- **AI-powered sales/support agent** (Hugging Face)
+- **WhatsApp Web connection** (QR code pairing via Baileys)
+- **Ticket system** with human support escalation
+- **Admin dashboard** with real-time metrics
+- **Support agent panel** with chat interface
+- **Analytics and activity tracking**
+- **Permission management** with break tracking
+- **Queue system** (Bull) for async processing
+- **Dockerized** with Docker Compose
 
-## 📦 Available Products
-
-### Websites
-- Custom Website (from $100 USD)
-- WordPress
-- React (additional cost)
-
-### Systems
-- Medical Appointment System
-- Inventory System
-- Payment Collection System
-- Event Ticket System
-- Custom ERP
-
-### Applications
-- Android Applications
-
-## 🛠 Technologies
+## Tech Stack
 
 - **Node.js** + **TypeScript**
 - **Express.js**
-- **Sequelize** + **Sequelize-TypeScript**
-- **SQLite** (Relational database)
-- **Redis** (Cache and queues)
-- **Bull** (Queue system)
-- **Hugging Face API** (Free AI)
+- **Sequelize** + **SQLite** (relational database)
+- **Redis** (cache and queues)
+- **Bull** (queue system)
+- **Hugging Face API** (AI agent)
 - **Docker** + **Docker Compose**
 - **WhatsApp Web** (Baileys — primary connection)
 - **WhatsApp Cloud API** (fallback)
 
-## 📋 Prerequisites
+## Prerequisites
 
 - Node.js 18+
 - Docker and Docker Compose
@@ -53,55 +34,37 @@ An intelligent WhatsApp bot for selling software development services, featuring
 - (Optional) Hugging Face token for advanced AI
 - (Optional) WhatsApp Business API account (for Cloud API fallback mode)
 
-## ⚙️ Installation
+## Quick Start
 
-1. **Clone the repository:**
+### 1. Clone the repository
+
 ```bash
 git clone <repo-url>
 cd whatsapp-bot-demo
 ```
 
-2. **Install dependencies:**
+### 2. Install dependencies
+
 ```bash
 npm install
 ```
 
-3. **Configure environment variables:**
+### 3. Configure environment variables
+
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` with your credentials:
-```env
-PORT=3000
-NODE_ENV=development
+Edit `.env` with your credentials. At minimum, set a `JWT_SECRET` for dashboard authentication.
 
-# SQLite Database
-DB_STORAGE=./data/database.sqlite
+### 4. Run with Docker Compose
 
-# Redis
-REDIS_URL=redis://localhost:6379
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# WhatsApp Cloud API (optional — fallback)
-WHATSAPP_TOKEN=your_whatsapp_token
-WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
-WEBHOOK_VERIFY_TOKEN=your_webhook_verify_token
-
-# AI (Optional)
-HUGGING_FACE_TOKEN=your_huggingface_token
-
-# Bitcoin
-BITCOIN_ADDRESS=your_bitcoin_address
-```
-
-4. **Run with Docker Compose:**
 ```bash
-docker-compose up -d
+docker-compose up -d --build
 ```
 
 Or **run locally:**
+
 ```bash
 # Start Redis (required)
 docker run -d -p 6379:6379 redis:7-alpine
@@ -110,7 +73,26 @@ docker run -d -p 6379:6379 redis:7-alpine
 npm run dev
 ```
 
-## 🔧 WhatsApp Web Connection (Primary Method)
+## Bot Commands
+
+- **MENU** — View main menu
+- **HELP** — View help and available commands
+- **HOURS** — View business hours
+
+## Dashboard
+
+The admin dashboard is available at `http://localhost:3000/dashboard` (or your configured port).
+
+### Dashboard Setup
+
+1. **Set `JWT_SECRET`** in your `.env` file — this secures dashboard authentication.
+2. **Set `DASHBOARD_ORIGIN`** to match your frontend URL (default: `http://localhost:5173` for Vite dev server).
+3. **Start the app** and navigate to the dashboard URL.
+4. **Login** with your admin credentials.
+
+> **Note:** When running the dashboard frontend separately (e.g., Vite dev server on port 5173), ensure `DASHBOARD_ORIGIN` matches the frontend origin to allow CORS.
+
+## WhatsApp Web Connection (Primary Method)
 
 The bot connects to WhatsApp using the **Baileys** library, which implements the WhatsApp Web protocol. This is the **primary connection method** — no API tokens or Meta Business account required for receiving messages.
 
@@ -132,124 +114,85 @@ npm run dev
 
 If the WhatsApp Web client is not connected, the bot falls back to the **WhatsApp Cloud API** for sending messages. Messages are queued via Bull and delivered once the connection is established or via the Cloud API if configured.
 
-### Webhook Configuration (Cloud API)
+## Environment Variables
 
-If using WhatsApp Cloud API as your primary or backup method:
+| Variable | Description | Default |
+|---|---|---|
+| `PORT` | Server port | `3000` |
+| `NODE_ENV` | Environment mode | `development` |
+| `DB_STORAGE` | SQLite database file path | `./data/database.sqlite` |
+| `REDIS_URL` | Redis connection string | `redis://localhost:6379` |
+| `REDIS_HOST` | Redis host | `localhost` |
+| `REDIS_PORT` | Redis port | `6379` |
+| `WHATSAPP_TOKEN` | WhatsApp Cloud API token | — |
+| `WHATSAPP_PHONE_NUMBER_ID` | WhatsApp phone number ID | — |
+| `WEBHOOK_VERIFY_TOKEN` | Webhook verification token | — |
+| `JWT_SECRET` | JWT secret for dashboard auth | — |
+| `HUGGING_FACE_TOKEN` | Hugging Face API token (optional) | — |
+| `DASHBOARD_ORIGIN` | Dashboard frontend origin for CORS | `http://localhost:5173` |
 
-1. Configure the webhook in your Meta Developer account:
-   - URL: `https://your-domain.com/whatsapp/webhook`
-   - Verify token: Same value as `WEBHOOK_VERIFY_TOKEN` in `.env`
-   - Events: `messages`
+## Docker
 
-2. For local development, use **ngrok** or similar:
-```bash
-ngrok http 3000
-```
+### Build and run
 
-> **Note:** When using WhatsApp Web (Baileys), the webhook is only needed if you also integrate the Cloud API. The QR code method handles incoming messages directly through the WebSocket connection.
-
-## 📱 Bot Usage
-
-### Available Commands:
-
-- **MENU** - View main menu
-- **CATALOG** - View full product catalog
-- **CART** - View shopping cart
-- **ADD [number]** - Add product to cart (e.g., ADD 1)
-- **REMOVE [number]** - Remove product from cart
-- **CLEAR** - Clear cart
-- **CHECKOUT** - Complete purchase
-- **BITCOIN** - Pay with Bitcoin
-- **HOURS** - View business hours
-- **HELP** - View help
-
-### Purchase Flow:
-
-1. User sends **CATALOG**
-2. Selects a product by sending **ADD [number]**
-3. Views cart with **CART**
-4. Proceeds with **CHECKOUT**
-5. Selects payment method (**BITCOIN**)
-6. Receives Bitcoin address
-7. Sends payment and submits TXID
-8. Order confirmed
-
-## 🐳 Docker
-
-### Build and run:
 ```bash
 docker-compose up -d --build
 ```
 
-### View logs:
+### View logs
+
 ```bash
 docker-compose logs -f app
 ```
 
-### Stop:
+### Stop
+
 ```bash
 docker-compose down
 ```
 
-### Stop and remove volumes:
+### Stop and remove volumes
+
 ```bash
 docker-compose down -v
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 whatsapp-bot-demo/
 ├── src/
-│   ├── config/          # Configuration (DB, Redis, Queues)
-│   ├── controllers/     # HTTP controllers
-│   ├── models/          # Database models
-│   ├── routes/          # Express routes
-│   ├── services/        # Business logic
+│   ├── config/           # Configuration (DB, Redis, Queues)
+│   ├── controllers/      # HTTP controllers
+│   ├── models/           # Database models
+│   ├── routes/           # Express routes
+│   ├── services/         # Business logic
 │   │   ├── ai.service.ts           # AI service (Hugging Face)
-│   │   ├── bitcoin.service.ts      # Bitcoin payments
 │   │   ├── bot.service.ts          # Core bot logic
-│   │   ├── cart.service.ts         # Shopping cart
-│   │   ├── md-reader.service.ts    # Markdown reader
-│   │   ├── product.service.ts      # Product management
-│   │   ├── schedule.service.ts     # Business hours
 │   │   ├── whatsapp.service.ts     # WhatsApp messaging (Cloud API + Web)
 │   │   └── whatsapp-web.service.ts # WhatsApp Web connection (Baileys)
 │   ├── app.ts
 │   └── server.ts
-├── data/                # SQLite database (generated)
-├── auth_info/           # WhatsApp Web auth state (generated)
+├── data/                 # SQLite database (generated)
+├── auth_info/            # WhatsApp Web auth state (generated)
 ├── docker-compose.yml
 ├── Dockerfile
+├── .env.example
 └── package.json
 ```
 
-## 🔐 Security
+## Security
 
 - Never commit your `.env` files
-- Use secure tokens for production
+- Use a strong, unique `JWT_SECRET` in production
 - Configure HTTPS for the webhook (Cloud API mode)
 - Validate all user input
 - The `auth_info/` directory contains your WhatsApp session credentials — treat it as sensitive data and add it to `.gitignore`
 
-## 🤝 Contributing
-
-Contributions are welcome. Please:
-
-1. Fork the project
-2. Create a branch for your feature
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
-
-## 📄 License
+## License
 
 See the LICENSE file.
 
-## 📞 Support
-
-For support, open an issue in the repository.
-
 ---
 
-Built with ❤️ to automate software sales
+Built with automation to streamline sales and support
