@@ -1,0 +1,104 @@
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { User } from "../models/user.model";
+import { ActivityLog } from "../models/activity-log.model";
+
+const JWT_SECRET = process.env.JWT_SECRET || "whatsapp-bot-dev-secret-key-change-in-production";
+
+export class AuthService {
+  /**
+   * Authenticate user credentials and return JWT + user data.
+   */
+  async login(email: string, password: string): Promise<{ token: string; user: Partial<User> }> {
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      throw new Error("Invalid credentials");
+    }
+
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+      throw new Error("Invalid credentials");
+    }
+
+    if (!user.active) {
+      throw new Error("Account is deactivated");
+    }
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Log activity
+    await ActivityLog.create({
+      userId: user.id,
+      action: "login",
+    });
+
+    const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: "24h" });
+
+    return {
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone,
+        active: user.active,
+        lastLogin: user.lastLogin,
+        socketStatus: user.socketStatus,
+      },
+    };
+  }
+
+  /**
+   * Seed default admin user if none exists.
+   */
+  async seedAdmin(): Promise<User | null> {
+    const existing = await User.findOne({ where: { email: "admin@example.com" } });
+    if (existing) {
+      return null;
+    }
+
+    const hashedPassword = await bcrypt.hash("admin123", 10);
+    const admin = await User.create({
+      name: "Admin",
+      email: "admin@example.com",
+      password: hashedPassword,
+      role: "admin",
+      active: true,
+    });
+
+    return admin;
+  }
+
+  /**
+   * Create a new user with hashed password.
+   */
+  async createUser(data: {
+    name: string;
+    email: string;
+    password: string;
+    role?: string;
+    phone?: string;
+  }): Promise<User> {
+    const existing = await User.findOne({ where: { email: data.email } });
+    if (existing) {
+      throw new Error("A user with this email already exists");
+    }
+
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const user = await User.create({
+      name: data.name,
+      email: data.email,
+      password: hashedPassword,
+      role: data.role || "support",
+      phone: data.phone,
+      active: true,
+    });
+
+    return user;
+  }
+}
+
+export const authService = new AuthService();
