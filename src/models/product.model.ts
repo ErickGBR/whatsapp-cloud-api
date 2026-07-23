@@ -1,5 +1,4 @@
 import { Table, Column, Model, DataType, PrimaryKey, AutoIncrement, HasMany } from "sequelize-typescript";
-import { CartItem } from "./cart-item.model";
 import { OrderItem } from "./order-item.model";
 
 @Table({ tableName: "products" })
@@ -29,9 +28,6 @@ export class Product extends Model {
 
   @Column({ type: DataType.BOOLEAN, defaultValue: true })
   active!: boolean;
-
-  @HasMany(() => CartItem)
-  cartItems!: CartItem[];
 
   @HasMany(() => OrderItem)
   orderItems!: OrderItem[];
