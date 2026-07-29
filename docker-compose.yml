@@ -44,6 +44,20 @@ services:
       - whatsapp-bot-network
     command: redis-server --appendonly yes
 
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: whatsapp-bot-dashboard
+    ports:
+      - "8080:80"
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - whatsapp-bot-network
+
 volumes:
   redis-data:
     driver: local
