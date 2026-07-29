@@ -6,7 +6,9 @@
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
-    "test": "jest"
+    "test": "jest",
+    "test:e2e": "npx playwright test --config=e2e/playwright.config.ts",
+    "test:e2e:headed": "npx playwright test --config=e2e/playwright.config.ts --headed"
   },
   "author": "Erick Burgos",
   "dependencies": {
@@ -29,6 +31,7 @@
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.0",
     "@types/bcryptjs": "^3.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.25",
@@ -38,6 +41,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/qrcode-terminal": "^0.12.2",
     "jest": "^29.7.0",
+    "playwright": "^1.62.0",
     "ts-jest": "^29.4.12",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3"
