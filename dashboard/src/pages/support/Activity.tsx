@@ -1,13 +1,23 @@
 import { useState, useEffect } from "react";
 import { ActivityTable } from "../../components/ui/ActivityTable";
+import { Pagination } from "../../components/ui/Pagination";
 import { useAuth } from "../../contexts/AuthContext";
 import api from "../../services/api";
 import type { ActivityLog } from "../../types";
 
+interface ActivitiesResponse {
+  rows: ActivityLog[];
+  count: number;
+}
+
+const PAGE_SIZE = 15;
+
 export default function SupportActivity() {
   const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -15,8 +25,15 @@ export default function SupportActivity() {
       if (!user) return;
       try {
         setLoading(true);
-        const res = await api.get<ActivityLog[]>(`/activity?userId=${user.id}`);
-        setActivities(res.data);
+        const params = new URLSearchParams({
+          userId: String(user.id),
+          limit: String(PAGE_SIZE),
+          offset: String((page - 1) * PAGE_SIZE),
+        });
+        const res = await api.get<ActivitiesResponse>(`/activity?${params.toString()}`);
+        const data = res.data;
+        setActivities(data.rows ?? data);
+        setTotal(data.count ?? 0);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch activity");
       } finally {
@@ -24,7 +41,7 @@ export default function SupportActivity() {
       }
     };
     fetchMyActivity();
-  }, [user]);
+  }, [user, page]);
 
   if (error) {
     return (
@@ -47,6 +64,11 @@ export default function SupportActivity() {
 
       <div className="rounded-xl border border-gray-700 bg-gray-800">
         <ActivityTable activities={activities} loading={loading} />
+        <Pagination
+          page={page}
+          totalPages={Math.ceil(total / PAGE_SIZE)}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );

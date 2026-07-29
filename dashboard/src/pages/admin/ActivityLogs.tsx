@@ -1,24 +1,41 @@
 import { useState, useEffect, useMemo } from "react";
 import { Search, Filter } from "lucide-react";
 import { ActivityTable } from "../../components/ui/ActivityTable";
+import { Pagination } from "../../components/ui/Pagination";
 import api from "../../services/api";
 import type { ActivityLog } from "../../types";
 
+interface ActivitiesResponse {
+  rows: ActivityLog[];
+  count: number;
+}
+
+const PAGE_SIZE = 20;
+
 export default function ActivityLogs() {
   const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const fetchActivities = async () => {
       try {
         setLoading(true);
-        const res = await api.get<ActivityLog[]>("/activity");
-        setActivities(res.data);
+        const params = new URLSearchParams();
+        params.set("limit", String(PAGE_SIZE));
+        params.set("offset", String((page - 1) * PAGE_SIZE));
+        if (actionFilter !== "all") params.set("action", actionFilter);
+
+        const res = await api.get<ActivitiesResponse>(`/activity?${params.toString()}`);
+        const data = res.data;
+        setActivities(data.rows ?? data);
+        setTotal(data.count ?? 0);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch activity logs");
       } finally {
@@ -26,7 +43,7 @@ export default function ActivityLogs() {
       }
     };
     fetchActivities();
-  }, []);
+  }, [page, actionFilter]);
 
   const filteredActivities = useMemo(() => {
     return activities.filter((log) => {
@@ -117,6 +134,11 @@ export default function ActivityLogs() {
       {/* Table */}
       <div className="rounded-xl border border-gray-700 bg-gray-800">
         <ActivityTable activities={filteredActivities} loading={loading} />
+        <Pagination
+          page={page}
+          totalPages={Math.ceil(total / PAGE_SIZE)}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );

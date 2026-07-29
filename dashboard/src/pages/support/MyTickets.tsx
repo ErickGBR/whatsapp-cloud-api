@@ -2,16 +2,26 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MessageSquare, AlertCircle } from "lucide-react";
 import { StatusBadge } from "../../components/ui/StatusBadge";
+import { Pagination } from "../../components/ui/Pagination";
 import { useAuth } from "../../contexts/AuthContext";
 import api from "../../services/api";
 import type { Ticket } from "../../types";
 
+interface TicketsResponse {
+  rows: Ticket[];
+  count: number;
+}
+
+const PAGE_SIZE = 10;
+
 export default function MyTickets() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [total, setTotal] = useState(0);
   const [queueCount, setQueueCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -20,9 +30,15 @@ export default function MyTickets() {
       if (!user) return;
       try {
         setLoading(true);
-        const params = new URLSearchParams({ assignedTo: String(user.id) });
-        const res = await api.get<Ticket[]>(`/tickets?${params.toString()}`);
-        setTickets(res.data);
+        const params = new URLSearchParams({
+          assignedTo: String(user.id),
+          limit: String(PAGE_SIZE),
+          offset: String((page - 1) * PAGE_SIZE),
+        });
+        const res = await api.get<TicketsResponse>(`/tickets?${params.toString()}`);
+        const data = res.data;
+        setTickets(data.rows ?? data);
+        setTotal(data.count ?? 0);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch tickets");
       } finally {
@@ -41,7 +57,7 @@ export default function MyTickets() {
 
     fetchTickets();
     fetchQueueCount();
-  }, [user]);
+  }, [user, page]);
 
   const maxTickets = 10;
   const filteredTickets =
@@ -179,6 +195,13 @@ export default function MyTickets() {
           ))
         )}
       </div>
+
+      {/* Pagination */}
+      <Pagination
+        page={page}
+        totalPages={Math.ceil(total / PAGE_SIZE)}
+        onPageChange={setPage}
+      />
     </div>
   );
 }

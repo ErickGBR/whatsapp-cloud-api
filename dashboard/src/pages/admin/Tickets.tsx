@@ -2,20 +2,28 @@ import { useState, useMemo } from "react";
 import { Search, Filter } from "lucide-react";
 import { useTickets } from "../../hooks/useTickets";
 import { StatusBadge } from "../../components/ui/StatusBadge";
+import { Pagination } from "../../components/ui/Pagination";
 import type { Ticket } from "../../types";
 
-const priorityOrder: Record<string, number> = {
+const PRIORITY_ORDER: Record<string, number> = {
   urgent: 0,
   high: 1,
   medium: 2,
   low: 3,
 };
 
+const PAGE_SIZE = 15;
+
 export default function AdminTickets() {
-  const { tickets, loading, error, updateTicketStatus, assignTicket } = useTickets();
+  const [page, setPage] = useState(1);
+  const { tickets, total, totalPages, loading, error, updateTicketStatus, assignTicket } = useTickets({ limit: PAGE_SIZE, page });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+
+  // Reset to page 1 when filters change
+  const handleSearchChange = (val: string) => { setSearch(val); setPage(1); };
+  const handleStatusFilterChange = (val: string) => { setStatusFilter(val); setPage(1); };
 
   const filteredTickets = useMemo(() => {
     return tickets
@@ -30,7 +38,7 @@ export default function AdminTickets() {
           (t.subject?.toLowerCase() || "").includes(q)
         );
       })
-      .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+      .sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
   }, [tickets, search, statusFilter]);
 
   if (loading) {
@@ -68,7 +76,7 @@ export default function AdminTickets() {
             type="text"
             placeholder="Search tickets..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full rounded-lg border border-gray-600 bg-gray-700 pl-10 pr-3 py-2 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
           />
         </div>
@@ -77,7 +85,7 @@ export default function AdminTickets() {
           <Filter className="h-4 w-4 text-gray-500" />
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => handleStatusFilterChange(e.target.value)}
             className="rounded-lg border border-gray-600 bg-gray-700 px-3 py-2 text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
           >
             <option value="all">All Status</option>
@@ -173,6 +181,9 @@ export default function AdminTickets() {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
   );
 }
