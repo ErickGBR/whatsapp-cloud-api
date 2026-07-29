@@ -143,8 +143,8 @@ export class ProductService {
       message += "\n";
     }
 
-    message += "To add to cart, type: *ADD [number]*\n";
-    message += "Example: *ADD 1*\n\n";
+    message += "To inquire about any product, just let me know its name or number.\n";
+    message += "Example: *Tell me about product 1*\n\n";
     message += "Type *MENU* to return to the main menu.";
 
     return message;
