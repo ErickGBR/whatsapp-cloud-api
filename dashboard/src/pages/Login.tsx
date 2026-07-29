@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { MessageSquare, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import api from "../services/api";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -9,6 +10,8 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [seedMsg, setSeedMsg] = useState<string | null>(null);
+  const [seeding, setSeeding] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -36,6 +39,21 @@ export default function Login() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSeed = async () => {
+    try {
+      setSeeding(true);
+      setSeedMsg(null);
+      await api.post("/auth/seed");
+      setSeedMsg("Default admin user created! Email: admin@example.com / Password: admin123");
+    } catch (err) {
+      setSeedMsg(
+        err instanceof Error ? err.message : "Failed to seed admin user"
+      );
+    } finally {
+      setSeeding(false);
     }
   };
 
@@ -112,6 +130,19 @@ export default function Login() {
             </button>
           </form>
         </div>
+
+        {seedMsg && (
+          <p className="mt-3 text-center text-xs text-gray-400">{seedMsg}</p>
+        )}
+
+        <button
+          type="button"
+          disabled={seeding}
+          onClick={handleSeed}
+          className="mt-2 block w-full text-center text-xs text-gray-500 hover:text-purple-400 transition-colors disabled:opacity-50"
+        >
+          {seeding ? "Seeding..." : "Seed Admin"}
+        </button>
 
         <p className="mt-6 text-center text-xs text-gray-500">
           WhatsApp Bot Sales Dashboard v2.0
