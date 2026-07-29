@@ -207,4 +207,45 @@ router.post("/tickets/:id/messages", authenticate, async (req: AuthRequest, res:
   }
 });
 
+/**
+ * PATCH /api/tickets/:id
+ * Generic update — dispatches by body fields.
+ *   { status }        → updateStatus
+ *   { assignedTo }    → assign
+ *   { needsHelp }     → toggleHelp
+ */
+router.patch("/tickets/:id", authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = parseInt(req.params.id);
+    const { status, assignedTo, needsHelp } = req.body;
+
+    if (status) {
+      const ticket = await ticketService.updateStatus(id, status);
+      if (!ticket) { res.status(404).json({ error: "Ticket not found" }); return; }
+      res.json(ticket);
+      return;
+    }
+
+    if (assignedTo !== undefined) {
+      const ticket = await ticketService.assign(id, assignedTo);
+      if (!ticket) { res.status(404).json({ error: "Ticket not found" }); return; }
+      res.json(ticket);
+      return;
+    }
+
+    if (needsHelp !== undefined) {
+      const ticket = await ticketService.toggleHelp(id);
+      if (!ticket) { res.status(404).json({ error: "Ticket not found" }); return; }
+      // toggleHelp returns the ticket with needsHelp flipped
+      res.json(ticket);
+      return;
+    }
+
+    res.status(400).json({ error: "No valid field provided. Use status, assignedTo, or needsHelp." });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to update ticket";
+    res.status(400).json({ error: message });
+  }
+});
+
 export default router;
