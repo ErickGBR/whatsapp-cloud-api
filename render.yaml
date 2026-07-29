@@ -1,0 +1,38 @@
+# Render Blueprint — WhatsApp Sales Bot
+# Deploy with Docker for full environment control
+services:
+  - type: web
+    name: whatsapp-bot-sales
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: main
+    autoDeploy: true
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      - key: DB_STORAGE
+        value: ./data/database.sqlite
+      - key: JWT_SECRET
+        sync: false
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WEBHOOK_VERIFY_TOKEN
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: REDIS_HOST
+        sync: false
+      - key: REDIS_PORT
+        sync: false
+      - key: HUGGING_FACE_TOKEN
+        sync: false
+      - key: DASHBOARD_ORIGIN
+        sync: false
