@@ -19,3 +19,10 @@ opencode.json
 
 # WhatsApp Web auth session
 auth_info/
+
+# E2E test artifacts
+e2e-report/
+screenshots/e2e-*
+
+# Playwright MCP tool artifacts
+.playwright-mcp/
