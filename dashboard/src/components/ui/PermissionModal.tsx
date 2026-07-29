@@ -28,7 +28,7 @@ export function PermissionModal({ isOpen, onClose }: PermissionModalProps) {
     try {
       setSubmitting(true);
       setError(null);
-      await api.post("/permissions", { type, maxDuration: duration });
+      await api.post("/support/permissions", { type });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to request permission");
