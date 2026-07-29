@@ -8,7 +8,6 @@ import {
   Mail,
   AlertCircle,
 } from "lucide-react";
-import { useAuth } from "../../contexts/AuthContext";
 import { useSocketEvent, useSocketEmit } from "../../hooks/useSocket";
 import api from "../../services/api";
 import type { Ticket, TicketMessage } from "../../types";
@@ -21,7 +20,6 @@ export default function Chat() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { emit } = useSocketEmit();
 

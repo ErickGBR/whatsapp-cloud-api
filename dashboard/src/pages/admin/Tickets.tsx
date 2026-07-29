@@ -3,7 +3,6 @@ import { Search, Filter } from "lucide-react";
 import { useTickets } from "../../hooks/useTickets";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { Pagination } from "../../components/ui/Pagination";
-import type { Ticket } from "../../types";
 
 const PRIORITY_ORDER: Record<string, number> = {
   urgent: 0,
@@ -16,11 +15,9 @@ const PAGE_SIZE = 15;
 
 export default function AdminTickets() {
   const [page, setPage] = useState(1);
-  const { tickets, total, totalPages, loading, error, updateTicketStatus, assignTicket } = useTickets({ limit: PAGE_SIZE, page });
+  const { tickets, totalPages, loading, error, updateTicketStatus } = useTickets({ limit: PAGE_SIZE, page });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-
   // Reset to page 1 when filters change
   const handleSearchChange = (val: string) => { setSearch(val); setPage(1); };
   const handleStatusFilterChange = (val: string) => { setStatusFilter(val); setPage(1); };
@@ -118,7 +115,7 @@ export default function AdminTickets() {
               <tr
                 key={ticket.id}
                 className="border-b border-gray-700/50 hover:bg-gray-700/30 cursor-pointer"
-                onClick={() => setSelectedTicket(ticket)}
+                onClick={() => {}}
               >
                 <td className="px-4 py-3 font-medium text-white">#{ticket.id}</td>
                 <td className="px-4 py-3">

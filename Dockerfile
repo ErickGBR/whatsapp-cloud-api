@@ -1,13 +1,10 @@
 # WhatsApp Sales Bot — Backend API
-FROM node:18-alpine
+FROM node:20-bookworm
 
 WORKDIR /app
 
-# Install system dependencies needed for SQLite and other tools
-RUN apk add --no-cache python3 make g++ sqlite
-
-# Enable pnpm via corepack (uses version from packageManager in package.json)
-RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+# Install pnpm globally via npm (corepack may fail in restricted networks)
+RUN npm install -g pnpm@9.15.4
 
 # Copy dependency manifests
 COPY package.json pnpm-lock.yaml ./

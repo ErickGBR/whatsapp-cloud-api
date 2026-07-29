@@ -41,7 +41,7 @@ export function PermissionsPieChart({ data }: PermissionsPieChartProps) {
             cx="50%"
             cy="50%"
             outerRadius={90}
-            label={({ type, count }) => `${type}: ${count}`}
+            label={(entry: any) => `${entry.type}: ${entry.count}`}
             labelLine={{ stroke: "#6B7280" }}
           >
             {data.map((_, index) => (

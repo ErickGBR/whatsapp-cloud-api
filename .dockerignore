@@ -1,5 +1,9 @@
 node_modules
+dashboard/node_modules
 dist
+e2e
+screenshots
+.playwright-mcp
 .env
 .env.local
 *.log
