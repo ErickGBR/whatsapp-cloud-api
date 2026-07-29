@@ -18,9 +18,20 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Extract server error message early
+    const serverMsg = error.response?.data?.error;
+
+    // Don't redirect on login attempts (expected to return 401 for bad creds)
+    const url: string = error.config?.url || "";
+    const isLoginRequest = url.includes("/auth/login") || url.includes("/api/auth/login");
+    if (error.response?.status === 401 && !isLoginRequest) {
       localStorage.removeItem("token");
       window.location.href = "/login";
+    }
+
+    // Enrich error with server message when available
+    if (serverMsg) {
+      error.message = serverMsg;
     }
     return Promise.reject(error);
   }
