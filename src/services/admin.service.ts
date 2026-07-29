@@ -6,14 +6,62 @@ import { Ticket } from "../models/ticket.model";
 
 export class AdminService {
   /**
-   * Get all support agents with their current status.
+   * Get all support agents with their current status and activity metrics.
    */
-  async getActiveSupports(): Promise<User[]> {
-    return User.findAll({
+  async getActiveSupports(): Promise<(User & { ticketsResolved: number; avgTime: number; breakCount: number })[]> {
+    const users = await User.findAll({
       where: { role: "support" },
       attributes: ["id", "name", "email", "phone", "active", "socketStatus", "lastLogin"],
       order: [["name", "ASC"]],
     });
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    // Calculate global average resolution time from last 30 resolved tickets
+    const resolvedTickets = await Ticket.findAll({
+      where: { status: "resolved" },
+      order: [["updatedAt", "DESC"]],
+      limit: 30,
+    });
+    let avgResolutionTime = 0;
+    if (resolvedTickets.length > 0) {
+      const totalMinutes = resolvedTickets.reduce((sum, ticket) => {
+        const created = new Date(ticket.createdAt);
+        const resolved = new Date(ticket.updatedAt);
+        return sum + (resolved.getTime() - created.getTime()) / 60000;
+      }, 0);
+      avgResolutionTime = Math.round(totalMinutes / resolvedTickets.length);
+    }
+
+    const enriched = await Promise.all(
+      users.map(async (user) => {
+        const ticketsResolved = await ActivityLog.count({
+          where: {
+            userId: user.id,
+            action: "resolve_ticket",
+            createdAt: { [Op.gte]: sevenDaysAgo },
+          },
+        });
+
+        const breakCount = await ActivityLog.count({
+          where: {
+            userId: user.id,
+            action: "request_break",
+            createdAt: { [Op.gte]: sevenDaysAgo },
+          },
+        });
+
+        return {
+          ...user.toJSON(),
+          ticketsResolved,
+          avgTime: avgResolutionTime,
+          breakCount,
+        } as User & { ticketsResolved: number; avgTime: number; breakCount: number };
+      })
+    );
+
+    return enriched;
   }
 
   /**
