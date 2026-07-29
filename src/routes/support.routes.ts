@@ -67,8 +67,8 @@ router.post("/support/incidents", authenticate, async (req: AuthRequest, res: Re
 router.get("/support/activity", authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const limit = parseInt(req.query.limit as string) || 20;
-    const activity = await supportService.getActivity(req.user!.id, limit);
-    res.json(activity);
+    const { rows, count } = await supportService.getActivity(req.user!.id, limit);
+    res.json({ rows, count });
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch activity" });
   }

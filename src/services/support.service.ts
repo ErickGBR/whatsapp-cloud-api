@@ -80,12 +80,13 @@ export class SupportService {
   /**
    * Get activity log for a specific user.
    */
-  async getActivity(userId: number, limit: number = 20): Promise<ActivityLog[]> {
-    return ActivityLog.findAll({
+  async getActivity(userId: number, limit: number = 20): Promise<{ rows: ActivityLog[]; count: number }> {
+    const result = await ActivityLog.findAndCountAll({
       where: { userId },
       order: [["createdAt", "DESC"]],
       limit,
     });
+    return { rows: result.rows, count: result.count };
   }
 
   /**
