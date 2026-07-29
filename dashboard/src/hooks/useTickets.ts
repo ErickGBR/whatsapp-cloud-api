@@ -6,12 +6,22 @@ interface UseTicketsOptions {
   assignedTo?: number;
   status?: string;
   limit?: number;
+  page?: number;
+}
+
+interface TicketsResponse {
+  rows: Ticket[];
+  count: number;
 }
 
 export function useTickets(options?: UseTicketsOptions) {
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const page = options?.page ?? 1;
+  const limit = options?.limit ?? 50;
 
   const fetchTickets = useCallback(async () => {
     try {
@@ -20,16 +30,18 @@ export function useTickets(options?: UseTicketsOptions) {
       const params = new URLSearchParams();
       if (options?.assignedTo) params.set("assignedTo", String(options.assignedTo));
       if (options?.status) params.set("status", options.status);
-      if (options?.limit) params.set("limit", String(options.limit));
+      params.set("limit", String(limit));
+      params.set("offset", String((page - 1) * limit));
 
-      const res = await api.get<Ticket[]>(`/tickets?${params.toString()}`);
-      setTickets(res.data);
+      const res = await api.get<TicketsResponse>(`/tickets?${params.toString()}`);
+      setTickets(res.data.rows ?? res.data);
+      setTotal(res.data.count ?? 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch tickets");
     } finally {
       setLoading(false);
     }
-  }, [options?.assignedTo, options?.status, options?.limit]);
+  }, [options?.assignedTo, options?.status, limit, page]);
 
   useEffect(() => {
     fetchTickets();
@@ -47,5 +59,7 @@ export function useTickets(options?: UseTicketsOptions) {
     return res.data;
   }, []);
 
-  return { tickets, loading, error, refetch: fetchTickets, updateTicketStatus, assignTicket };
+  const totalPages = Math.ceil(total / limit);
+
+  return { tickets, total, totalPages, loading, error, refetch: fetchTickets, updateTicketStatus, assignTicket };
 }
