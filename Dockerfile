@@ -6,20 +6,23 @@ WORKDIR /app
 # Install system dependencies needed for SQLite and other tools
 RUN apk add --no-cache python3 make g++ sqlite
 
-# Copy dependency files
-COPY package*.json ./
+# Enable pnpm via corepack (uses version from packageManager in package.json)
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 
-# Install all dependencies (including devDependencies for build)
-RUN npm ci
+# Copy dependency manifests
+COPY package.json pnpm-lock.yaml ./
+
+# Install ALL dependencies (including devDependencies for TypeScript build)
+RUN pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
-# Build TypeScript
-RUN npm run build
+# Build TypeScript (generates dist/)
+RUN pnpm run build
 
-# Remove dev dependencies after build
-RUN npm prune --production
+# Remove dev dependencies after build (production only)
+RUN pnpm prune --prod
 
 # Create required directories
 RUN mkdir -p /app/data /app/logs
@@ -27,6 +30,5 @@ RUN mkdir -p /app/data /app/logs
 # Expose port
 EXPOSE 3000
 
-# Command to start the application
+# Start the application
 CMD ["node", "dist/server.js"]
-
