@@ -5,6 +5,7 @@ import { sequelize } from "./config/database";
 import { connectRedis } from "./config/redis";
 import { productService } from "./services/product.service";
 import { whatsappWebService } from "./services/whatsapp-web.service";
+import { authService } from "./services/auth.service";
 import { User } from "./models/user.model";
 import dotenv from "dotenv";
 
@@ -19,8 +20,14 @@ async function startServer() {
     console.log("✅ Database connection established");
 
     // Sync models
-    await sequelize.sync({ alter: true });
+    await sequelize.sync({ alter: false });
     console.log("✅ Database synchronized");
+
+    // Seed default admin user if not exists
+    const seeded = await authService.seedAdmin();
+    if (seeded) {
+      console.log("✅ Default admin user seeded (admin@example.com / admin123)");
+    }
 
     // Initialize products
     await productService.initializeProducts();
