@@ -1,15 +1,15 @@
 # Render Blueprint — WhatsApp Sales Bot
-# Deploy with Docker for full environment control
+# Uses Node runtime (simpler, faster builds on free tier)
 services:
   - type: web
     name: whatsapp-bot-sales
-    runtime: docker
+    runtime: node
     plan: free
     region: oregon
     branch: main
     autoDeploy: true
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
+    buildCommand: pnpm install --frozen-lockfile && pnpm run build
+    startCommand: pnpm start
     healthCheckPath: /health
     envVars:
       - key: PORT

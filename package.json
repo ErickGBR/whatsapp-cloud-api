@@ -4,6 +4,7 @@
   "main": "dist/server.js",
   "scripts": {
     "start": "node dist/server.js",
+    "prestart": "node -e \"require('fs').existsSync('dist/server.js')||require('child_process').execSync('npx tsc',{stdio:'inherit'})\"",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "test": "jest",

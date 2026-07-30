@@ -1,4 +1,6 @@
 import http from "http";
+import fs from "fs";
+import path from "path";
 import app from "./app";
 import { Server as SocketIOServer } from "socket.io";
 import { sequelize } from "./config/database";
@@ -15,6 +17,12 @@ const PORT = process.env.PORT || 3000;
 
 async function startServer() {
   try {
+    // Ensure data directory exists (for Render Node runtime)
+    const dataDir = process.env.DB_STORAGE
+      ? path.dirname(process.env.DB_STORAGE)
+      : path.join(__dirname, "..", "data");
+    fs.mkdirSync(dataDir, { recursive: true });
+
     // Connect to database
     await sequelize.authenticate();
     console.log("✅ Database connection established");
