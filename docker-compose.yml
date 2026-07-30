@@ -21,7 +21,8 @@ services:
       - ./data:/app/data
       - ./logs:/app/logs
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - whatsapp-bot-network
