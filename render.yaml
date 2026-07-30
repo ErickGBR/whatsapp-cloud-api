@@ -1,15 +1,14 @@
 # Render Blueprint — WhatsApp Sales Bot
-# Uses Node runtime (simpler, faster builds on free tier)
+# Uses Docker runtime with embedded Redis (supervisord single container)
 services:
   - type: web
     name: whatsapp-bot-sales
-    runtime: node
+    env: docker
+    dockerfilePath: ./Dockerfile
     plan: free
     region: oregon
     branch: main
     autoDeploy: true
-    buildCommand: pnpm install --frozen-lockfile && pnpm run build
-    startCommand: pnpm start
     healthCheckPath: /health
     envVars:
       - key: PORT
@@ -25,12 +24,6 @@ services:
       - key: WHATSAPP_PHONE_NUMBER_ID
         sync: false
       - key: WEBHOOK_VERIFY_TOKEN
-        sync: false
-      - key: REDIS_URL
-        sync: false
-      - key: REDIS_HOST
-        sync: false
-      - key: REDIS_PORT
         sync: false
       - key: HUGGING_FACE_TOKEN
         sync: false
