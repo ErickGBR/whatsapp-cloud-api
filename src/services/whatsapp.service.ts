@@ -1,6 +1,6 @@
 import axios from "axios";
 import dotenv from "dotenv";
-import { messageQueue } from "../config/queue";
+import { getMessageQueue } from "../config/queue";
 import { whatsappWebService } from "./whatsapp-web.service";
 
 dotenv.config();
@@ -13,7 +13,7 @@ export const sendWhatsAppMessage = async (to: string, message: string) => {
     await whatsappWebService.sendMessage(to, message);
     return;
   }
-  await messageQueue.add("send-message", { to, message });
+  await getMessageQueue().add("send-message", { to, message });
 };
 
 export const sendWhatsAppMessageDirect = async (to: string, message: string) => {
@@ -48,8 +48,8 @@ export const sendWhatsAppMessageDirect = async (to: string, message: string) => 
   }
 };
 
-// Procesar mensajes de la cola
-messageQueue.process("send-message", async (job) => {
+// Register queue processor (lazy init, attaches on first get)
+getMessageQueue().process("send-message", async (job) => {
   const { to, message } = job.data;
   await sendWhatsAppMessageDirect(to, message);
 });
