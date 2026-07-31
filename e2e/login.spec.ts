@@ -9,10 +9,16 @@ test.describe("Login Flow", () => {
     await page.waitForSelector('text="Sign In"', { timeout: 10_000 });
 
     // 2. Fill email
-    await page.fill('input[type="email"]', "admin@example.com");
+    await page.fill(
+      'input[type="email"]',
+      process.env.ADMIN_EMAIL || "admin@example.com"
+    );
 
     // 3. Fill password
-    await page.fill('input[type="password"]', "admin123");
+    await page.fill(
+      'input[type="password"]',
+      process.env.ADMIN_PASSWORD || "admin123"
+    );
 
     // 4. Click Sign In
     await page.click('button[type="submit"]');

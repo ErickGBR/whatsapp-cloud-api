@@ -4,8 +4,14 @@ test.describe("Tickets Page", () => {
   test.beforeEach(async ({ page }) => {
     // Login first
     await page.goto("/login");
-    await page.fill('input[type="email"]', "admin@example.com");
-    await page.fill('input[type="password"]', "admin123");
+    await page.fill(
+      'input[type="email"]',
+      process.env.ADMIN_EMAIL || "admin@example.com"
+    );
+    await page.fill(
+      'input[type="password"]',
+      process.env.ADMIN_PASSWORD || "admin123"
+    );
     await page.click('button[type="submit"]');
     await page.waitForURL("**/admin/dashboard", { timeout: 15_000 });
 

@@ -193,7 +193,12 @@ router.post("/tickets/:id/messages", authenticate, async (req: AuthRequest, res:
           `💬 *${senderName} (Support)*\n\n${content}`
         );
       } catch (waError) {
-        console.error("Failed to send WhatsApp message for ticket reply:", waError);
+        // SEC-N1: log message only — a full error object can embed
+        // axios config headers (e.g. "Bearer <WHATSAPP_TOKEN>").
+        console.error(
+          "Failed to send WhatsApp message for ticket reply:",
+          waError instanceof Error ? waError.message : String(waError)
+        );
         // Do not fail the request — the message is already stored in the ticket
       }
     } else {

@@ -31,6 +31,12 @@ echo ""
 
 # ── Step 1: Build and start services ──────────────────────────────
 echo -e "${YELLOW}[1/5] Starting Docker services...${NC}"
+
+# E2E stack requires ADMIN_* (app refuses to boot in production without them).
+# Defaults match the dev credentials; the user can override via env.
+export ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}"
+export ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin123}"
+
 docker compose up --build -d 2>&1
 
 # ── Step 2: Wait for services to be healthy ────────────────────────

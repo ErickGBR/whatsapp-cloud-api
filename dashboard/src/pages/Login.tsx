@@ -47,7 +47,7 @@ export default function Login() {
       setSeeding(true);
       setSeedMsg(null);
       await api.post("/auth/seed");
-      setSeedMsg("Default admin user created! Email: admin@example.com / Password: admin123");
+      setSeedMsg("Admin user created! Use the admin credentials set via ADMIN_EMAIL / ADMIN_PASSWORD");
     } catch (err) {
       setSeedMsg(
         err instanceof Error ? err.message : "Failed to seed admin user"
@@ -88,7 +88,7 @@ export default function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@example.com"
+                placeholder="you@example.com"
                 className="w-full rounded-lg border border-gray-600 bg-gray-700 px-3 py-2.5 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
               />
             </div>

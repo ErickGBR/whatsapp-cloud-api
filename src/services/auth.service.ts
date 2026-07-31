@@ -2,8 +2,11 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.model";
 import { ActivityLog } from "../models/activity-log.model";
+import { getAdminCredentials, getJwtSecret } from "../config/env";
 
-const JWT_SECRET = process.env.JWT_SECRET || "whatsapp-bot-dev-secret-key-change-in-production";
+// Fail-fast (SEC-001): throws at import time in production if JWT_SECRET is
+// missing — no public fallback is ever used in production.
+const JWT_SECRET = getJwtSecret();
 
 export class AuthService {
   /**
@@ -53,17 +56,21 @@ export class AuthService {
 
   /**
    * Seed default admin user if none exists.
+   * Credentials come from ADMIN_EMAIL + ADMIN_PASSWORD (SEC-002). In
+   * production both are mandatory (throws if missing) — the public
+   * admin123 default is NEVER used in production.
    */
   async seedAdmin(): Promise<User | null> {
-    const existing = await User.findOne({ where: { email: "admin@example.com" } });
+    const { email, password } = getAdminCredentials();
+    const existing = await User.findOne({ where: { email } });
     if (existing) {
       return null;
     }
 
-    const hashedPassword = await bcrypt.hash("admin123", 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
     const admin = await User.create({
       name: "Admin",
-      email: "admin@example.com",
+      email,
       password: hashedPassword,
       role: "admin",
       active: true,

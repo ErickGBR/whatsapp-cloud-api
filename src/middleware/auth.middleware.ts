@@ -1,8 +1,11 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.model";
+import { getJwtSecret } from "../config/env";
 
-const JWT_SECRET = process.env.JWT_SECRET || "whatsapp-bot-dev-secret-key-change-in-production";
+// Fail-fast (SEC-001): shared secret with auth.service.ts via src/config/env.ts.
+// Throws at import time in production if JWT_SECRET is missing.
+const JWT_SECRET = getJwtSecret();
 
 export interface AuthRequest extends Request {
   user?: User;

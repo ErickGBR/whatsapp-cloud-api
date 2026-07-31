@@ -114,7 +114,8 @@ export class BotService {
         await sendWhatsAppMessage(from, cleanResponse);
       }
     } catch (error: any) {
-      console.error("Error handling message:", error);
+      // SEC-N1: log message only — the chain can embed axios config headers.
+      console.error("Error handling message:", error instanceof Error ? error.message : String(error));
       await sendWhatsAppMessage(
         from,
         "❌ Sorry, an error occurred. Please try again or type *HELP* for assistance."

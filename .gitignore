@@ -26,5 +26,4 @@ screenshots/e2e-*
 
 # Playwright MCP tool artifacts
 .playwright-mcp/
----test-results---
-e2e-report
+test-results/

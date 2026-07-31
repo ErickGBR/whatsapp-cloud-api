@@ -32,7 +32,8 @@ router.get("/admin/metrics", async (req: AuthRequest, res: Response): Promise<vo
     const metrics = await metricsService.getDashboardMetrics();
     res.json(metrics);
   } catch (error) {
-    console.error("Metrics error:", error);
+    // SEC-N1: log message only — never the full error object.
+    console.error("Metrics error:", error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: "Failed to fetch metrics" });
   }
 });
@@ -175,7 +176,8 @@ router.get("/metrics/dashboard", authenticate, allowRoles("admin"), async (_req:
     const metrics = await metricsService.getDashboardMetrics();
     res.json(metrics);
   } catch (error) {
-    console.error("Metrics error:", error);
+    // SEC-N1: log message only — never the full error object.
+    console.error("Metrics error:", error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: "Failed to fetch metrics" });
   }
 });

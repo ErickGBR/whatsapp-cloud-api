@@ -5,16 +5,18 @@ import { productService } from "../services/product.service";
 // Webhook to receive WhatsApp messages
 export const webhook = async (req: Request, res: Response) => {
   try {
-    const body = req.body;
-
-    // Webhook verification (Meta requires this)
-    if (body.object === "whatsapp_business_account") {
-      if (req.query["hub.mode"] === "subscribe" && req.query["hub.verify_token"] === process.env.WEBHOOK_VERIFY_TOKEN) {
+    // Meta webhook verification (GET with query params, no body) — MUST run
+    // before the body.object guard below: Meta's verification request is a
+    // GET with NO body, so gating on body.object would never match (BUG-002).
+    if (req.query["hub.mode"] === "subscribe") {
+      if (req.query["hub.verify_token"] === process.env.WEBHOOK_VERIFY_TOKEN) {
         console.log("Webhook verified");
-        res.status(200).send(req.query["hub.challenge"]);
-        return;
+        return res.status(200).send(req.query["hub.challenge"]);
       }
+      return res.status(403).send("Forbidden");
     }
+
+    const body = req.body;
 
     // Process incoming messages
     if (body.object === "whatsapp_business_account" && body.entry) {
@@ -40,7 +42,9 @@ export const webhook = async (req: Request, res: Response) => {
 
     res.status(200).send("OK");
   } catch (error: any) {
-    console.error("Error in webhook:", error);
+    // SEC-N1: log message only — the error chain can embed axios config
+    // headers (e.g. "Bearer <WHATSAPP_TOKEN>") from outgoing sends.
+    console.error("Error in webhook:", error instanceof Error ? error.message : String(error));
     res.status(500).send("Error");
   }
 };

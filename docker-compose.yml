@@ -15,6 +15,11 @@ services:
       - REDIS_URL=redis://redis:6379
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      # REQUIRED in production (SEC-002): the app crashes on boot without
+      # ADMIN_EMAIL/ADMIN_PASSWORD. Set them in the project .env (or shell)
+      # before `docker compose up` — interpolated here at runtime.
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
     env_file:
       - .env
     volumes:
@@ -27,7 +32,8 @@ services:
     networks:
       - whatsapp-bot-network
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      # Uses Node's built-in fetch (slim runtime image has no wget/curl)
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
