@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { timingSafeEqual } from "crypto";
 import { botService } from "../services/bot.service";
 import { productService } from "../services/product.service";
 
@@ -9,7 +10,20 @@ export const webhook = async (req: Request, res: Response) => {
     // before the body.object guard below: Meta's verification request is a
     // GET with NO body, so gating on body.object would never match (BUG-002).
     if (req.query["hub.mode"] === "subscribe") {
-      if (req.query["hub.verify_token"] === process.env.WEBHOOK_VERIFY_TOKEN) {
+      // SEC-REVIEW: compare the verify token in constant time to avoid
+      // timing side-channels. timingSafeEqual throws when the buffers differ
+      // in length, so guard on non-empty + equal length first; fall back to
+      // false (403) otherwise.
+      const provided = req.query["hub.verify_token"];
+      const expected = process.env.WEBHOOK_VERIFY_TOKEN;
+      const providedBuffer = Buffer.from(typeof provided === "string" ? provided : "");
+      const expectedBuffer = Buffer.from(expected ?? "");
+      const tokenMatches =
+        providedBuffer.length > 0 &&
+        providedBuffer.length === expectedBuffer.length &&
+        timingSafeEqual(providedBuffer, expectedBuffer);
+
+      if (tokenMatches) {
         console.log("Webhook verified");
         return res.status(200).send(req.query["hub.challenge"]);
       }
