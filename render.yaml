@@ -1,51 +1,51 @@
 # Render Blueprint — WhatsApp Sales Bot
-# Uses Node runtime (simpler, faster builds on free tier)
+# Uses Docker runtime (single unified image serving backend + dashboard).
 services:
   - type: web
     name: whatsapp-bot-sales
-    runtime: node
+    runtime: docker   # uses ./Dockerfile (3-stage build: backend + dashboard + runtime)
     plan: free
     region: oregon
     branch: main
     autoDeploy: true
-    buildCommand: pnpm install --frozen-lockfile && pnpm run build
-    startCommand: pnpm start
     healthCheckPath: /health
+    dockerfilePath: ./Dockerfile
     envVars:
       # --- Runtime ---
       - key: PORT
         value: 3000
       - key: NODE_ENV
         value: production
-      # Pin the Node.js version used by Render's native runtime.
-      # Render defaults to a recent LTS (currently 24.x); this project
-      # targets Node 22 (maintenance LTS, supported until 2027-04-30).
-      # Node 20 reached end-of-life on 2026-04-30 and gets no security
-      # patches. The repo has no engines field; @types/node ^20 is only
-      # type definitions.
-      # Official docs: https://render.com/docs/language-support#nodejs
-      - key: NODE_VERSION
-        value: "22"
       - key: DB_STORAGE
         value: ./data/database.sqlite
+      - key: DASHBOARD_STATIC_DIR
+        value: /app/public
       # --- REQUIRED secrets (sync: false = value NOT tracked in git) ---
       # Set these in the Render dashboard (Service -> Environment) after the
       # first Blueprint sync. The app crashes on boot without them:
+      # JWT_SECRET — signs session/admin tokens; without it the app refuses
+      #   to start in production (SEC-002).
       - key: JWT_SECRET
         sync: false
+      # ADMIN_EMAIL / ADMIN_PASSWORD — initial admin credentials. The app
+      #   refuses to boot in production without them (SEC-002).
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      # --- Optional ---
+      # WhatsApp Cloud API credentials (optional — Baileys QR is the primary
+      # channel; these enable the Cloud API webhook path).
       - key: WHATSAPP_TOKEN
         sync: false
       - key: WHATSAPP_PHONE_NUMBER_ID
         sync: false
       - key: WEBHOOK_VERIFY_TOKEN
         sync: false
-      # Initial admin credentials (SEC-002) — the app refuses to boot in
-      # production without them:
-      - key: ADMIN_EMAIL
+      # GEMINI_API_KEY — enables Gemini AI features (optional; the bot works
+      #   without it, falling back to rule-based responses).
+      - key: GEMINI_API_KEY
         sync: false
-      - key: ADMIN_PASSWORD
-        sync: false
-      # --- Optional ---
       # Redis is OPTIONAL (the app fails fast and runs without queues if
       # unset). Render's free tier does NOT include Redis.
       - key: REDIS_URL
@@ -54,10 +54,7 @@ services:
         sync: false
       - key: REDIS_PORT
         sync: false
-      # Hugging Face token for the AI agent (optional — works without it).
-      - key: HUGGING_FACE_TOKEN
-        sync: false
-      # Dashboard CORS origin (optional — the dashboard is NOT deployed on
-      # Render for now).
+      # Dashboard CORS origin (optional — the dashboard is served from the
+      # same origin as the API in this unified image).
       - key: DASHBOARD_ORIGIN
         sync: false
