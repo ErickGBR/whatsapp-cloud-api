@@ -59,6 +59,26 @@ export interface Permission {
   actualDuration?: number;
 }
 
+export interface BotConfig {
+  id: number;
+  key: string;
+  businessName: string;
+  systemPrompt: string;
+  welcomeMessage: string | null;
+  ticketCommands: string[];
+  aiModel: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WhatsAppStatus {
+  connected: boolean;
+  connecting: boolean;
+  state: 'connecting' | 'connected' | 'disconnected' | 'loggedOut';
+  phone?: string | null;
+  qr?: string | null;
+}
+
 export interface DashboardMetrics {
   ticketsToday: number;
   resolvedToday: number;

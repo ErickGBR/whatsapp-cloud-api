@@ -9,6 +9,8 @@ import AdminTickets from "./pages/admin/Tickets";
 import Agents from "./pages/admin/Agents";
 import ActivityLogs from "./pages/admin/ActivityLogs";
 import Permissions from "./pages/admin/Permissions";
+import WhatsApp from "./pages/admin/WhatsApp";
+import BotConfig from "./pages/admin/BotConfig";
 import MyTickets from "./pages/support/MyTickets";
 import Chat from "./pages/support/Chat";
 import SupportActivity from "./pages/support/Activity";
@@ -62,6 +64,8 @@ function AppRoutes() {
       >
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="tickets" element={<AdminTickets />} />
+        <Route path="whatsapp" element={<WhatsApp />} />
+        <Route path="bot-config" element={<BotConfig />} />
         <Route path="agents" element={<Agents />} />
         <Route path="activity" element={<ActivityLogs />} />
         <Route path="permissions" element={<Permissions />} />

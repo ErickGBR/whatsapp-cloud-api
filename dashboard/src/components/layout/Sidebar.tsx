@@ -8,6 +8,8 @@ import {
   MessageSquare,
   AlertTriangle,
   FileText,
+  QrCode,
+  Bot,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -25,6 +27,8 @@ interface NavItem {
 const adminNav: NavItem[] = [
   { to: "/admin/dashboard", icon: <LayoutDashboard className="h-5 w-5" />, label: "Dashboard" },
   { to: "/admin/tickets", icon: <Ticket className="h-5 w-5" />, label: "Tickets" },
+  { to: "/admin/whatsapp", icon: <QrCode className="h-5 w-5" />, label: "WhatsApp" },
+  { to: "/admin/bot-config", icon: <Bot className="h-5 w-5" />, label: "Bot Config" },
   { to: "/admin/agents", icon: <Users className="h-5 w-5" />, label: "Agents" },
   { to: "/admin/activity", icon: <ClipboardList className="h-5 w-5" />, label: "Activity Logs" },
   { to: "/admin/permissions", icon: <Shield className="h-5 w-5" />, label: "Permissions" },
