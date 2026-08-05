@@ -10,7 +10,7 @@ import { productService } from "./services/product.service";
 import { whatsappWebService } from "./services/whatsapp-web.service";
 import { setIo } from "./services/socket-events";
 import { authService } from "./services/auth.service";
-import { getJwtSecret } from "./config/env";
+import { getJwtSecret, isDemoMode } from "./config/env";
 import { User } from "./models/user.model";
 import { Ticket } from "./models/ticket.model";
 import dotenv from "dotenv";
@@ -44,6 +44,13 @@ async function startServer() {
     if (seeded) {
       // SEC-002: never log the admin password — only the email.
       console.log(`✅ Default admin user seeded (${seeded.email})`);
+    }
+
+    // Seed demo support user (SEC-DEMO) — only in demo mode. The password is
+    // public demo data, but we still never log it.
+    if (isDemoMode()) {
+      const demo = await authService.ensureDemoCredentials();
+      if (demo) console.log(`✅ Demo support user seeded (${demo.email})`); // NEVER log password
     }
 
     // Initialize products

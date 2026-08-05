@@ -80,6 +80,21 @@ export class AuthService {
   }
 
   /**
+   * Seed the demo support user if it does not exist (SEC-DEMO).
+   * Only called when isDemoMode() is true (see server.ts). The credentials
+   * are public demo values meant to be shown on the login page — they are
+   * NEVER exposed outside demo mode.
+   */
+  async ensureDemoCredentials(): Promise<User | null> {
+    const email = "support@demo.com";
+    const password = "support123";
+    const existing = await User.findOne({ where: { email } });
+    if (existing) return null;
+    const hashed = await bcrypt.hash(password, 10);
+    return User.create({ name: "Demo Support", email, password: hashed, role: "support", active: true });
+  }
+
+  /**
    * Create a new user with hashed password.
    */
   async createUser(data: {

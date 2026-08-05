@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import rateLimit from "express-rate-limit";
 import { authService } from "../services/auth.service";
 import { authenticate, AuthRequest } from "../middleware/auth.middleware";
-import { isProduction } from "../config/env";
+import { isDemoMode, isProduction, getAdminCredentials } from "../config/env";
 
 const router = Router();
 
@@ -77,6 +77,38 @@ router.get("/auth/me", authenticate, async (req: AuthRequest, res: Response): Pr
   } catch (error) {
     res.status(500).json({ error: "Failed to get user info" });
   }
+});
+
+/**
+ * Demo rate limit (SEC-DEMO): 30 requests per 60s per IP — enough for the
+ * login page to fetch demo hints, too many for credential scraping.
+ */
+const demoLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests" },
+});
+
+/**
+ * GET /api/auth/demo
+ * Public endpoint that returns demo credentials for the login page.
+ * SEC-DEMO: credentials are returned ONLY when isDemoMode() is true. In
+ * production WITHOUT DEMO_MODE=true this returns { enabled: false } and
+ * NEVER leaks admin/support credentials.
+ */
+router.get("/auth/demo", demoLimiter, async (_req: Request, res: Response): Promise<void> => {
+  if (!isDemoMode()) {
+    res.json({ enabled: false });
+    return;
+  }
+  const admin = getAdminCredentials(); // { email, password } (env in prod, admin@example.com/admin123 in dev)
+  res.json({
+    enabled: true,
+    admin: { email: admin.email, password: admin.password },
+    support: { email: "support@demo.com", password: "support123" },
+  });
 });
 
 /**

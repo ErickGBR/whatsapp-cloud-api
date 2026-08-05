@@ -88,3 +88,19 @@ export const getAdminCredentials = (): { email: string; password: string } => {
  */
 export const getDashboardOrigin = (): string =>
   process.env.DASHBOARD_ORIGIN || "http://localhost:5173";
+
+/**
+ * Demo mode flag (SEC-DEMO). Controls whether public demo credentials are
+ * exposed via GET /api/auth/demo and whether the demo support user is seeded.
+ *
+ * Policy:
+ *  - true  for any non-production environment (development/test) — local
+ *    dev and test runs are always demo so the login page shows hints.
+ *  - true  in production ONLY when DEMO_MODE === "true" is explicitly set.
+ *  - false in production without DEMO_MODE — the demo endpoint must NEVER
+ *    leak credentials on a real environment.
+ */
+export const isDemoMode = (): boolean => {
+  if (!isProduction()) return true; // local dev/test always demo
+  return process.env.DEMO_MODE === "true"; // production only when explicitly opted-in
+};
