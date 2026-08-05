@@ -11,7 +11,7 @@ export default defineConfig({
   workers: 1,
   reporter: [["html", { outputFolder: "../e2e-report" }], ["list"]],
   use: {
-    baseURL: process.env.BASE_URL || "http://localhost:8081",
+    baseURL: process.env.BASE_URL || "http://localhost:3000",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
