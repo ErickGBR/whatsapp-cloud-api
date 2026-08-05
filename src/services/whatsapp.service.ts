@@ -50,10 +50,15 @@ export const sendWhatsAppMessageDirect = async (to: string, message: string) => 
     return;
   }
 
+  // JID normalization: Baileys routes use the full JID ("503...@s.whatsapp.net",
+  // handled by the branch above), but the Meta Graph API wants the bare local
+  // phone number only — strip any "@..." suffix before sending.
+  const toNumber = to.includes("@") ? to.split("@")[0] : to;
+
   const url = `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`;
   const data = {
     messaging_product: "whatsapp",
-    to,
+    to: toNumber,
     type: "text",
     text: { body: message },
   };
