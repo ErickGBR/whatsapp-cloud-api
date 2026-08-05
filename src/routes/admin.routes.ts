@@ -1,7 +1,9 @@
 import { Router, Response } from "express";
+import rateLimit from "express-rate-limit";
 import { adminService } from "../services/admin.service";
 import { metricsService } from "../services/metrics.service";
 import { authService } from "../services/auth.service";
+import { botConfigService } from "../services/bot-config.service";
 import { ActivityLog } from "../models/activity-log.model";
 import { authenticate, allowRoles, AuthRequest } from "../middleware/auth.middleware";
 
@@ -9,6 +11,26 @@ const router = Router();
 
 // All admin routes require admin role
 router.use("/admin", authenticate, allowRoles("admin"));
+
+// CSRF (SEC-REVIEW, MEDIUM-3): NOT exploitable here. This app authenticates via
+// a JWT bearer token in the Authorization header (no session cookie), and the
+// dashboard is served same-origin. A cross-site <form> POST cannot set the
+// Authorization header, so classic cookie-riding CSRF does not apply. No
+// cookie/CSRF-token middleware is therefore required.
+
+/**
+ * Admin bot-config rate limit (SEC-REVIEW): 30 requests per 60s per admin.
+ * Runs after the router-level `authenticate` + `allowRoles("admin")` above,
+ * so req.user is always populated for these routes.
+ */
+const adminBotConfigLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests" },
+  keyGenerator: (req: AuthRequest): string => req.user?.id?.toString() || "anonymous",
+});
 
 /**
  * GET /api/admin/supports
@@ -158,6 +180,36 @@ router.post("/admin/users", async (req: AuthRequest, res: Response): Promise<voi
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to create user";
+    res.status(400).json({ error: message });
+  }
+});
+
+/**
+ * GET /api/admin/bot-config
+ * Get the current bot configuration (ticketCommands as a JSON-parsed array).
+ */
+router.get("/admin/bot-config", adminBotConfigLimiter, async (_req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const config = await botConfigService.getConfig();
+    res.json(botConfigService.toDto(config));
+  } catch (error) {
+    // SEC-N1: log message only — never the full error object.
+    console.error("Bot config error:", error instanceof Error ? error.message : String(error));
+    res.status(500).json({ error: "Failed to fetch bot configuration" });
+  }
+});
+
+/**
+ * PUT /api/admin/bot-config
+ * Update the bot configuration (businessName, systemPrompt, welcomeMessage,
+ * ticketCommands, aiModel). Invalid fields return 400.
+ */
+router.put("/admin/bot-config", adminBotConfigLimiter, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const config = await botConfigService.updateConfig(req.body);
+    res.json(botConfigService.toDto(config));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to update bot configuration";
     res.status(400).json({ error: message });
   }
 });
