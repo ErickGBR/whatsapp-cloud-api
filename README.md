@@ -1,178 +1,185 @@
-# WhatsApp Sales Bot — AI Support + Dashboard
+# WhatsApp Sales Bot
 
-An intelligent WhatsApp bot with an AI-powered sales and support agent, ticket management system, and a full-featured admin dashboard. Connects via the **WhatsApp Cloud API** (production-ready, webhook-based), with **WhatsApp Web (Baileys/QR)** available for local development only.
-
-## Screenshots
-
-<div align="center">
-  <table>
-    <tr>
-      <td align="center"><strong>Login</strong></td>
-      <td align="center"><strong>Admin Dashboard</strong></td>
-    </tr>
-    <tr>
-      <td><img src="screenshots/login.png" alt="Login" width="400"/></td>
-      <td><img src="screenshots/admin-dashboard.png" alt="Admin Dashboard" width="400"/></td>
-    </tr>
-    <tr>
-      <td align="center"><strong>Tickets Management</strong></td>
-      <td align="center"><strong>Support Agents</strong></td>
-    </tr>
-    <tr>
-      <td><img src="screenshots/tickets.png" alt="Tickets" width="400"/></td>
-      <td><img src="screenshots/agents.png" alt="Agents" width="400"/></td>
-    </tr>
-    <tr>
-      <td align="center"><strong>Activity Logs</strong></td>
-      <td align="center"><strong>Permissions Management</strong></td>
-    </tr>
-    <tr>
-      <td><img src="screenshots/activity.png" alt="Activity" width="400"/></td>
-      <td><img src="screenshots/permissions.png" alt="Permissions" width="400"/></td>
-    </tr>
-    <tr>
-      <td align="center"><strong>Support Tickets</strong></td>
-      <td align="center"><strong>Live Chat</strong></td>
-    </tr>
-    <tr>
-      <td><img src="screenshots/support-tickets.png" alt="Support Tickets" width="400"/></td>
-      <td><img src="screenshots/support-chat.png" alt="Support Chat" width="400"/></td>
-    </tr>
-  </table>
-</div>
+AI-powered WhatsApp sales and support bot with a real-time admin dashboard. Connects via **Baileys QR** (WhatsApp Web pairing) as the primary channel, with an optional **Meta WhatsApp Cloud API** webhook fallback. The dashboard is a React 19 + Vite + Tailwind v4 SPA served statically by the backend in a single container.
 
 ## Features
 
-- **AI-powered sales/support agent** (Hugging Face)
-- **WhatsApp Cloud API connection** (production-ready, webhook-based)
-- **WhatsApp Web connection** (QR code pairing via Baileys — local development only)
-- **Ticket system** with human support escalation
-- **Admin dashboard** with real-time metrics
-- **Support agent panel** with chat interface
-- **Analytics and activity tracking**
-- **Permission management** with break tracking
-- **Queue system** (Bull) for async processing
-- **Docker** for local development (docker-compose)
-- **Render-ready** (deploy via Render's native Node runtime)
+- **Baileys QR pairing** (primary) — scan from WhatsApp app, Linked Devices
+- **WhatsApp Cloud API webhook** (optional fallback) — production-ready, headless
+- **Google Gemini AI** — REST-based via axios; rule-based fallback when no API key is set
+- **Ticket system** — AI escalation or configured ticket commands (TICKET, AGENTE, SOPORTE, SUPPORT)
+- **Real-time updates** — Socket.IO for live ticket events and connection status
+- **Admin dashboard** — single-container, served at the same origin as the API
+- **Admin-editable bot config** — system prompt, welcome message, ticket commands, AI model
+- **Bull queues** (Redis) — optional, app degrades gracefully without it
+- **JWT bearer auth** — CSRF-mitigated (no session cookies), admin-only QR exposure
+- **Docker** — unified 3-stage build, non-root runtime, health check
+- **Render Blueprint** — deploy via `render.yaml` (Docker runtime)
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Docker container (node:22-bookworm-slim, non-root) │
+│                                                     │
+│  ┌──────────────┐   ┌───────────────────────────┐  │
+│  │ Express API  │   │  Static SPA (dashboard)   │  │
+│  │  :3000       │   │  served from /app/public   │  │
+│  │              │   │  served at same origin     │  │
+│  │  /health     │   │  /dashboard                │  │
+│  │  /whatsapp/* │   │                            │  │
+│  │  /api/*      │   │  React 19 + Vite + Tailwind│  │
+│  └──────┬───────┘   └────────────┬──────────────┘  │
+│         │                        │                   │
+│         ▼                        ▼                   │
+│  ┌──────────────┐   ┌───────────────────────────┐  │
+│  │ Baileys QR   │   │  Gemini REST (axios)      │  │
+│  │ Cloud API    │   │  GEMINI_API_KEY (opt.)    │  │
+│  └──────────────┘   └───────────────────────────┘  │
+│                                                     │
+│  ┌──────────────┐   ┌───────────────────────────┐  │
+│  │ SQLite       │   │  Redis (Bull queues)      │  │
+│  │ ./data/      │   │  (optional, graceful      │  │
+│  │ database.sqlite│  │   degradation)             │  │
+│  └──────────────┘   └───────────────────────────┘  │
+└─────────────────────────────────────────────────────┘
+```
 
 ## Tech Stack
 
-- **Node.js** + **TypeScript**
-- **Express.js**
-- **Sequelize** + **SQLite** (relational database)
-- **Redis** (cache and queues)
-- **Bull** (queue system)
-- **Hugging Face API** (AI agent)
-- **pnpm** (package manager)
-- **Docker**
-- **React** + **Vite** + **Tailwind CSS** (dashboard frontend)
-- **WhatsApp Cloud API** (primary production connection)
-- **WhatsApp Web** (Baileys — local development only)
+- **Node.js 22** + **TypeScript** + **Express**
+- **SQLite** via **Sequelize** (ORM) at `./data/database.sqlite`
+- **@whiskeysockets/baileys** — WhatsApp Web QR pairing
+- **Google Gemini** REST API (via `axios`) — configurable model per BotConfig
+- **Socket.IO** — real-time dashboard updates
+- **Bull** + **Redis** — optional job queues (graceful degradation)
+- **React 19** + **Vite** + **Tailwind v4** — dashboard frontend (compiled into backend)
+- **Yarn 1** (classic) — package manager (root `yarn.lock` + `dashboard/yarn.lock`)
+- **Docker** — 3-stage build (backend compile, dashboard compile, runtime)
+- **Playwright** — E2E testing
 
-## Prerequisites
+## Quick Start (Local)
 
-- Node.js 22 (LTS)
-- pnpm 9+
-- Docker (optional, for local development only)
-- (Optional, local development only) WhatsApp account (for QR code pairing via WhatsApp Web)
-- (Optional) Hugging Face token for advanced AI
-- WhatsApp Business API account with `WHATSAPP_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` (required for production — Cloud API is the primary channel)
-
-## Project Structure
-
-```
-whatsapp-bot-demo/
-├── src/
-│   ├── config/           # Configuration (DB, Redis, Queues)
-│   ├── controllers/      # HTTP controllers
-│   ├── models/           # Database models
-│   ├── routes/           # Express routes
-│   ├── services/         # Business logic
-│   │   ├── ai.service.ts           # AI service (Hugging Face)
-│   │   ├── bot.service.ts          # Core bot logic
-│   │   ├── whatsapp.service.ts     # WhatsApp messaging (Cloud API + Web)
-│   │   └── whatsapp-web.service.ts # WhatsApp Web connection (Baileys)
-│   ├── app.ts
-│   └── server.ts
-├── dashboard/            # React frontend (Vite + Tailwind CSS)
-│   ├── src/
-│   │   ├── pages/        # Dashboard pages
-│   │   ├── contexts/     # Auth & Socket contexts
-│   │   └── components/   # Reusable UI components
-│   └── ...
-├── data/                 # SQLite database (generated)
-├── auth_info/            # WhatsApp Web auth state (generated)
-├── screenshots/          # Application screenshots
-├── docker-compose.yml
-├── Dockerfile
-├── render.yaml           # Render blueprint (native Node runtime)
-├── .env.example
-└── package.json
-```
-
-## Quick Start
-
-### 1. Clone the repository
+### 1. Clone and install
 
 ```bash
 git clone <repo-url>
 cd whatsapp-bot-demo
+yarn install
 ```
 
-### 2. Install dependencies
-
-```bash
-pnpm install
-```
-
-### 3. Configure environment variables
+### 2. Configure environment
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` with your credentials. At minimum, set a `JWT_SECRET` for dashboard authentication; when running with `NODE_ENV=production` you must also set `ADMIN_EMAIL` and `ADMIN_PASSWORD` — the app fails fast (exits on boot) without them.
+Edit `.env` with your credentials. See [Configuration](#configuration) for details.
 
-### 4. Build and run
-
-```bash
-# Build TypeScript
-pnpm run build
-
-# Start the server
-pnpm start
-```
-
-The API server will start on port `3000` by default.
-
-### 5. Start the dashboard (development mode)
+### 3. Run in development mode
 
 ```bash
-cd dashboard
-pnpm install
-pnpm dev
+yarn dev
 ```
 
-The dashboard frontend will start on port `5173` (Vite dev server).
+The backend starts on `http://localhost:3000`. The dashboard is served at the same origin (`http://localhost:3000/dashboard`). A QR code is printed in the terminal for WhatsApp pairing.
 
-## Docker (Local Development Only)
-
-> Docker is **not** the production path. Deployments on Render use the
-> native Node.js runtime — see [Deploy to Render](#deploy-to-render) below.
-> The Docker setup below is for local development and testing only.
-
-### Build and run with Docker
+### 4. Run E2E tests
 
 ```bash
-docker build -t whatsapp-bot .
-docker run -p 3000:3000 --env-file .env whatsapp-bot
+# Start the Docker stack first, then:
+yarn test:e2e
+
+# Or use the convenience script (builds + starts Docker + runs tests + tears down):
+./scripts/run-e2e.sh
 ```
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Required? | Default | Description |
+|---|---|---|---|
+| `PORT` | No | `3000` | Server port |
+| `NODE_ENV` | No | `development` | Environment mode |
+| `DB_STORAGE` | No | `./data/database.sqlite` | SQLite database path |
+| `DASHBOARD_STATIC_DIR` | No | `/app/public` | Directory for compiled dashboard assets |
+| `JWT_SECRET` | **Yes (production)** | — | Signs admin JWT tokens; app refuses to boot in production without it |
+| `ADMIN_EMAIL` | **Yes (production)** | — | Initial admin email; app refuses to boot in production without it |
+| `ADMIN_PASSWORD` | **Yes (production)** | — | Initial admin password; app refuses to boot in production without it |
+| `GEMINI_API_KEY` | No | — | Google Gemini API key; without it the bot uses rule-based fallback responses |
+| `GEMINI_API_URL` | No | `https://generativelanguage.googleapis.com/v1beta/models/{aiModel}:generateContent` | Gemini REST endpoint (model is configurable per BotConfig) |
+| `WHATSAPP_TOKEN` | No | — | WhatsApp Cloud API token (fallback channel) |
+| `WHATSAPP_PHONE_NUMBER_ID` | No | — | WhatsApp Cloud API phone number ID (fallback channel) |
+| `WEBHOOK_VERIFY_TOKEN` | No | — | Webhook verification token (fallback channel) |
+| `REDIS_URL` | No | `redis://localhost:6379` | Redis connection string for Bull queues |
+| `REDIS_HOST` | No | `localhost` | Redis host |
+| `REDIS_PORT` | No | `6379` | Redis port |
+| `DASHBOARD_ORIGIN` | No | `http://localhost:3000` | CORS origin for the dashboard (same origin in production) |
+
+> **Production note:** `JWT_SECRET`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` are required when `NODE_ENV=production`. The app fails fast (exits on boot) without them.
+
+## WhatsApp QR Connection
+
+The **primary** WhatsApp channel is **Baileys QR pairing** (WhatsApp Web protocol).
+
+1. Start the app: `yarn dev` (or `yarn start`).
+2. A QR code is printed in the terminal on first run.
+3. Scan it with your phone:
+   - Open WhatsApp > **Settings** > **Linked Devices** > **Link a Device**
+   - Point the camera at the terminal QR code
+4. The session is persisted in `auth_info/` and reconnects automatically on restart.
+
+### Cloud API Fallback (Optional)
+
+When Baileys is not connected, the bot can receive messages via the **Meta WhatsApp Cloud API** webhook. Set `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, and `WEBHOOK_VERIFY_TOKEN` in your environment. Configure the webhook URL in the Meta Developer Console to point to `https://<your-domain>/whatsapp/webhook`.
+
+## Admin Panel (Dashboard)
+
+The dashboard is a React 19 + Vite + Tailwind v4 SPA compiled into the backend and served statically at the same origin. Pages:
+
+- **Dashboard** — real-time metrics and overview
+- **Tickets** — view and manage support tickets
+- **Agents** — manage support agents and permissions
+- **Activity Logs** — audit trail of actions
+- **Permissions** — role-based access control
+- **WhatsApp** — live QR code display, connection status, logout button
+- **Bot Config** — edit `businessName`, `systemPrompt`, `welcomeMessage`, `ticketCommands`, `aiModel`
+
+Login with `ADMIN_EMAIL` / `ADMIN_PASSWORD`. In production these must be set via environment variables; the default `admin@example.com` / `admin123` is development-only.
+
+## Bot Configuration
+
+The admin panel exposes the following bot settings:
+
+- **systemPrompt** — the AI persona/context (admin-editable). Combined with the live product catalog from the database, business hours, and the escalation rule (`__ESCALATE__` marker).
+- **welcomeMessage** — message sent when a new conversation starts.
+- **ticketCommands** — configured commands that trigger ticket creation (defaults: `TICKET`, `AGENTE`, `SOPORTE`, `SUPPORT`). These cannot collide with the `MENU`/`HELP`/`HOURS`/`CATALOG` family.
+- **aiModel** — Gemini model to use (default: `gemini-1.5-flash`). Configurable per `BotConfig`.
+
+Without `GEMINI_API_KEY`, the bot falls back to rule-based responses.
+
+## Tickets Flow
+
+1. A customer messages the bot on WhatsApp.
+2. The bot creates a ticket via **AI escalation** (Gemini detects a support request) **or** when the customer types a configured **ticket command** (e.g., `TICKET`, `SOPORTE`).
+3. Support agents see new tickets in real time via the Socket.IO event `support:new-ticket`.
+4. Agent replies are forwarded back to the customer's WhatsApp (via Baileys JID or Cloud API phone number).
+
+## Docker (Local Development)
 
 ### Docker Compose
 
 ```bash
 docker compose up -d --build
 ```
+
+This starts two services:
+
+- **app** — the unified backend + dashboard container (port `3000`)
+- **redis** — optional Bull queue backend (port `6379`)
+
+The app degrades gracefully if Redis is unavailable.
 
 ### View logs
 
@@ -192,130 +199,79 @@ docker compose down
 docker compose down -v
 ```
 
-## Deploy to Render
+## Render Deploy (Blueprint)
 
-The official production path is Render's **native Node.js runtime** via the `render.yaml` Blueprint — no Docker image. Render builds with pnpm and starts the compiled app with `pnpm start`; the health check hits `/health`.
+The project uses a **Docker runtime** on Render (single unified image), not the native Node.js runtime.
 
-### One-click deploy (Blueprint)
+### One-click deploy
 
-1. Push this repository to GitHub
-2. In the Render Dashboard, click **New +** → **Blueprint**
-3. Connect your repository — the `render.yaml` in the repo root is picked up automatically
-4. After the first Blueprint sync, set the required secrets in **Service → Environment** (see below)
-5. Deploy — Render builds with `pnpm install --frozen-lockfile && pnpm run build` and starts with `pnpm start`
+1. Push this repository to GitHub.
+2. In the Render Dashboard, click **New +** → **Blueprint**.
+3. Connect your repository — the `render.yaml` in the repo root is picked up automatically.
+4. After the first Blueprint sync, set the required secrets in **Service** → **Environment**:
+   - `JWT_SECRET` — long, random value
+   - `ADMIN_EMAIL` — initial admin email
+   - `ADMIN_PASSWORD` — strong initial admin password
+5. Deploy. Render builds the Docker image and starts it; the health check hits `/health`.
 
-Alternatively, create a **Web Service** manually:
-- **Runtime**: Node
-- **Build Command**: `pnpm install --frozen-lockfile && pnpm run build`
-- **Start Command**: `pnpm start`
-- **Health Check Path**: `/health`
+### First QR scan after deploy
 
-### Environment variables in Render
+1. After the first deploy, check the Render logs for the QR code (or connect via `docker compose exec app node -e "..."` if using a persistent shell).
+2. Scan the QR code with your phone (WhatsApp > Linked Devices > Link a Device).
+3. The session persists in the `data/` volume. On subsequent deploys the session remains valid unless the volume is reset.
 
-The entries marked `sync: false` in `render.yaml` are **not** tracked in git — set their values in the Render dashboard (Service → Environment):
+> **Ephemeral disk note:** Render's free tier uses an ephemeral filesystem. The `data/` volume (SQLite + WhatsApp session) is preserved across deploys on the free tier only if Render's persistent disk feature is enabled. Without it, the database and session are wiped on each deploy.
 
-| Variable | Required? | Notes |
-|---|---|---|
-| `JWT_SECRET` | **Required** | Dashboard auth — use a long, random value |
-| `WHATSAPP_TOKEN` | **Required** | WhatsApp Cloud API token |
-| `WHATSAPP_PHONE_NUMBER_ID` | **Required** | WhatsApp Cloud API phone number ID |
-| `WEBHOOK_VERIFY_TOKEN` | **Required** | Webhook verification token |
-| `ADMIN_EMAIL` | **Required** | Initial admin email (SEC-002) — the app crashes on boot without it in production |
-| `ADMIN_PASSWORD` | **Required** | Initial admin password (SEC-002) — use a strong, unique value |
-| `REDIS_URL` / `REDIS_HOST` / `REDIS_PORT` | Optional | Redis for Bull queues — the app fails fast without it (free tier has no Redis) |
-| `HUGGING_FACE_TOKEN` | Optional | AI agent works without it |
-| `DASHBOARD_ORIGIN` | Optional | CORS origin (the dashboard is not deployed on Render) |
-| `DB_STORAGE` | Optional | SQLite path (defaults to `./data/database.sqlite` — already set in `render.yaml`) |
+## CI/CD
 
-> **Ephemeral disk on the free tier**: Render's free instances use an ephemeral filesystem that is **reset on every redeploy**. `data/database.sqlite` (SQLite database) is wiped on each deploy — plan to re-seed data after every deploy, or use a persistent disk / external database on a paid plan. (`auth_info/`, the WhatsApp Web session, is only used in local development — the Cloud API webhook requires no pairing.)
+GitHub Actions workflow at `.github/workflows/ci.yml`:
 
-> **Redis**: Render's free tier does not support Redis. The queue system (Bull) is optional — the app starts without it (fail-fast). If you need queues in production, add a managed Redis provider or upgrade the plan.
+- **Triggers:** push and pull requests to `main`
+- **Node version:** 22 (pinned)
+- **Steps:** `yarn install` (root + dashboard) → `yarn build` (backend) → `yarn build` (dashboard)
+- **Tests are intentionally skipped** — Jest is knowingly broken (no `jest.config`) and would fail the pipeline. Build-only keeps CI green.
+- **Pinned action SHAs** are used for security.
 
-## WhatsApp Cloud API (Primary Method)
+## E2E Testing
 
-The bot connects to WhatsApp through the **WhatsApp Cloud API** (Meta), which is the **primary connection method in production**. It receives and sends messages via webhooks using `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, and `WEBHOOK_VERIFY_TOKEN` — no QR pairing or phone session required, and it works headless on Render.
-
-1. **Set the Cloud API environment variables** — `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, and `WEBHOOK_VERIFY_TOKEN` (see the [Render env vars table](#environment-variables-in-render) or [Environment Variables](#environment-variables)).
-2. **Configure the webhook** — point your Meta webhook to `https://<your-app>/whatsapp/webhook` and verify it with `WEBHOOK_VERIFY_TOKEN` (the app handles the `hub.mode`/`hub.verify_token` challenge).
-3. **The bot is ready** — messages are delivered through the Cloud API; no QR scan or session management needed.
-
-> **Note**: In production, serve the webhook over HTTPS (see [Security](#security)).
-
-### WhatsApp Web (Baileys — Local Development Only)
-
-For local development, the bot can also connect via **Baileys** (WhatsApp Web protocol) using QR code pairing. This is **not** the production channel and does not work on Render's headless instances.
-
-1. **Start the application** — on first run, a QR code will be printed in the terminal:
+E2E tests use **Playwright** and run against the Docker stack.
 
 ```bash
-pnpm start
+# Run against the running Docker stack:
+yarn test:e2e
+
+# Run with browser UI:
+yarn test:e2e:headed
+
+# Or use the convenience script (builds + starts Docker + runs tests + tears down):
+./scripts/run-e2e.sh
 ```
 
-2. **Scan the QR code** with your phone:
-   - Open WhatsApp on your phone
-   - Tap the **three dots** menu (Android) or **Settings** (iOS)
-   - Go to **Linked Devices** → **Link a Device**
-   - Scan the QR code displayed in the terminal
+The E2E config (`e2e/playwright.config.ts`) uses `baseURL: http://localhost:3000`. Default test credentials are `admin@example.com` / `admin123` (set by `scripts/run-e2e.sh`).
 
-3. **Automatic reconnection** — the bot saves authentication state in the `auth_info/` directory and will reconnect automatically on restart. If the session expires or logs out, delete the `auth_info/` folder and restart.
+## Troubleshooting
 
-## Dashboard
+### QR code not connecting
 
-The admin dashboard is available at `http://localhost:3000/dashboard` (or your configured port).
+- Ensure the terminal is showing the QR code (first run or after `auth_info/` is deleted).
+- Scan from WhatsApp on your phone: **Settings** > **Linked Devices** > **Link a Device**.
+- If the session expired, delete the `auth_info/` directory and restart the app.
 
-### Dashboard Setup
+### Ephemeral session resets on redeploy
 
-1. **Set `JWT_SECRET`** in your `.env` file — this secures dashboard authentication.
-2. **Set `DASHBOARD_ORIGIN`** to match your frontend URL (default: `http://localhost:5173` for Vite dev server).
-3. **Start the app** and navigate to the dashboard URL.
-4. **Login** with your admin credentials — set `ADMIN_EMAIL` / `ADMIN_PASSWORD` in production; the default `admin@example.com` / `admin123` is development-only.
+- On Render's free tier, the filesystem is ephemeral. The `data/` directory (SQLite + WhatsApp session) is lost on each deploy unless persistent storage is configured.
+- After redeploy, rescan the QR code to re-link WhatsApp.
 
-> **Note:** When running the dashboard frontend separately (e.g., Vite dev server on port 5173), ensure `DASHBOARD_ORIGIN` matches the frontend origin to allow CORS.
+### Redis is absent
 
-## Bot Commands
+- Redis is optional. The app starts without it and runs normally — Bull queues simply do not process jobs.
+- To add Redis, set `REDIS_URL` (e.g., `redis://localhost:6379`) and start a Redis instance.
 
-- **MENU** — View main menu
-- **HELP** — View help and available commands
-- **HOURS** — View business hours
+### Docker build fails with network errors
 
-## Environment Variables
-
-| Variable | Description | Default |
-|---|---|---|
-| `PORT` | Server port | `3000` |
-| `NODE_ENV` | Environment mode | `development` |
-| `DB_STORAGE` | SQLite database file path | `./data/database.sqlite` |
-| `REDIS_URL` | Redis connection string | `redis://localhost:6379` |
-| `REDIS_HOST` | Redis host | `localhost` |
-| `REDIS_PORT` | Redis port | `6379` |
-| `REDIS_PASSWORD` | Redis password (optional) | — |
-| `WHATSAPP_TOKEN` | WhatsApp Cloud API token | — |
-| `WHATSAPP_PHONE_NUMBER_ID` | WhatsApp phone number ID | — |
-| `WEBHOOK_VERIFY_TOKEN` | Webhook verification token | — |
-| `JWT_SECRET` | JWT secret for dashboard auth | — |
-| `ADMIN_EMAIL` | Initial admin email — **REQUIRED in production** | — |
-| `ADMIN_PASSWORD` | Initial admin password — **REQUIRED in production** | — |
-| `HUGGING_FACE_TOKEN` | Hugging Face API token (optional) | — |
-| `DASHBOARD_ORIGIN` | Dashboard frontend origin for CORS | `http://localhost:5173` |
-
-> **E2E testing**: the local E2E stack (`scripts/run-e2e.sh`) defaults to
-> `ADMIN_EMAIL=admin@example.com` / `ADMIN_PASSWORD=admin123` (set by the
-> script; override via env if needed). In production (Render) always use the
-> real `ADMIN_EMAIL` / `ADMIN_PASSWORD` secrets.
-
-## Security
-
-- Never commit your `.env` files or `.env` content
-- Use a strong, unique `JWT_SECRET` in production
-- Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in production — the `admin@example.com` / `admin123` default is development-only (SEC-002)
-- Configure HTTPS for the webhook (Cloud API mode)
-- Validate all user input
-- The `auth_info/` directory contains your WhatsApp session credentials — treat it as sensitive data and add it to `.gitignore`
-- API endpoints are protected with JWT-based authentication
-
-## License
-
-See the LICENSE file.
+- The Dockerfile uses `node:22-bookworm-slim` and installs build tools (python3, make, g++) for native dependencies like `sqlite3` and `libsignal`.
+- If the build network is restricted, ensure the Docker daemon can reach `https://deb.debian.org` (the sources list is rewritten to HTTPS in the Dockerfile).
+- If prebuilt binaries are available for your platform, the build tools step may be skipped by the package manager.
 
 ---
 
