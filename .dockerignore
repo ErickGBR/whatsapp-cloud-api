@@ -1,6 +1,7 @@
 node_modules
 dashboard/node_modules
 dist
+dashboard/dist
 e2e
 screenshots
 .playwright-mcp

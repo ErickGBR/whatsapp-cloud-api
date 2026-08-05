@@ -12,6 +12,7 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - DB_STORAGE=/app/data/database.sqlite
+      - DASHBOARD_STATIC_DIR=/app/public
       - REDIS_URL=redis://redis:6379
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -57,20 +58,6 @@ services:
       retries: 5
       start_period: 10s
 
-  dashboard:
-    build:
-      context: ./dashboard
-      dockerfile: Dockerfile
-    container_name: whatsapp-bot-dashboard
-    ports:
-      - "8081:80"
-    depends_on:
-      app:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - whatsapp-bot-network
-
 volumes:
   redis-data:
     driver: local
@@ -78,4 +65,3 @@ volumes:
 networks:
   whatsapp-bot-network:
     driver: bridge
-
