@@ -2,94 +2,88 @@ import axios from "axios";
 import dotenv from "dotenv";
 import { productService } from "./product.service";
 import { scheduleService } from "./schedule.service";
+import { botConfigService } from "./bot-config.service";
+import { DEFAULT_SYSTEM_PROMPT } from "../models/bot-config.model";
 
 dotenv.config();
 
-// Using Hugging Face Inference API (free with reasonable limits)
-const HUGGING_FACE_API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium";
-const HUGGING_FACE_TOKEN = process.env.HUGGING_FACE_TOKEN || "";
+// Google Gemini REST endpoint (no SDK — plain axios). The API key is passed
+// as a query param by the REST contract; it is NEVER logged.
+const GEMINI_BASE_URL =
+  process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
 /** Internal marker that triggers escalation when present in AI response. */
 const ESCALATION_MARKER = "__ESCALATE__";
 
-interface AIResponse {
-  generated_text: string;
+interface GeminiContentPart {
+  text: string;
+}
+
+interface GeminiContent {
+  role: "user" | "model";
+  parts: GeminiContentPart[];
 }
 
 export class AIService {
+  /**
+   * In-memory per-phone conversation history. Each entry is a plain text turn;
+   * turns alternate user/model starting with the user. Kept as the backing
+   * store for the public clearContext/setContext API.
+   */
   private context: Map<string, string[]> = new Map();
 
   /**
-   * Generate a response using the AI model (Hugging Face DialoGPT) or
-   * fallback responses when the API is unavailable.
+   * Generate a response using Google Gemini (REST) or a helpful fallback when
+   * the API key is missing or the request fails.
    *
-   * Injects a system-level context (product catalog + business hours) into
-   * the conversation history so the model understands it is a sales/support agent
-   * for a software development company.
+   * The system prompt is built from the admin-authored persona
+   * (botConfigService.getSystemPrompt()) plus a live block with the product
+   * catalog, business hours and escalation RULES.
    */
   async generateResponse(phone: string, userMessage: string): Promise<string> {
     try {
-      // If no token, use enhanced fallback responses
-      if (!HUGGING_FACE_TOKEN) {
-        return this.getFallbackResponse(userMessage);
+      // No key → enhanced fallback responses (never crash, never leak).
+      if (!GEMINI_API_KEY) {
+        return await this.getFallbackResponse(userMessage);
       }
 
-      // Get or create conversation context
-      if (!this.context.has(phone)) {
-        this.context.set(phone, []);
-      }
-      const conversation = this.context.get(phone)!;
+      const model = await botConfigService.getAiModel();
+      const systemPrompt = await this.buildSystemContext();
 
-      // On first message, seed the conversation with the system context
-      if (conversation.length === 0) {
-        const systemContext = await this.buildSystemContext();
-        conversation.push(systemContext);
-      }
-
-      // Append user message
+      const conversation = this.getOrCreateConversation(phone);
       conversation.push(userMessage);
 
-      // Call Hugging Face API
+      // Send the API key via the x-goog-api-key header (not a URL query
+      // param) to avoid leaking the key into logs and URL captures.
       const response = await axios.post(
-        HUGGING_FACE_API_URL,
+        `${GEMINI_BASE_URL}/v1beta/models/${encodeURIComponent(model)}:generateContent`,
         {
-          inputs: {
-            past_user_inputs: conversation.slice(-5),
-            generated_responses: conversation.slice(-5),
-            text: userMessage,
-          },
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: this.buildGeminiContents(conversation),
+          generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
         },
-        {
-          headers: {
-            Authorization: `Bearer ${HUGGING_FACE_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          timeout: 15000,
-        }
+        { timeout: 15000, headers: { "x-goog-api-key": GEMINI_API_KEY } }
       );
 
-      const aiResponse = response.data as AIResponse;
-      let botMessage = aiResponse.generated_text || "";
-
-      // Clean response
-      botMessage = botMessage.trim();
-
+      const botMessage = this.parseGeminiResponse(response.data);
       if (!botMessage || botMessage.length < 3) {
-        return this.getFallbackResponse(userMessage);
+        return await this.getFallbackResponse(userMessage);
       }
 
-      // Save to context
       conversation.push(botMessage);
 
-      // Limit context to 20 messages
+      // Limit stored history to 20 messages (contents window is ~10 turns).
       if (conversation.length > 20) {
         conversation.splice(0, conversation.length - 20);
       }
 
       return botMessage;
-    } catch (error: any) {
-      console.error("Error in AI service:", error.message);
-      return this.getFallbackResponse(userMessage);
+    } catch (error) {
+      // SEC-N1: never log the axios error object — it embeds the request URL
+      // (which carries the GEMINI_API_KEY query param) and headers. Message only.
+      console.error("Gemini error:", error instanceof Error ? error.message : String(error));
+      return await this.getFallbackResponse(userMessage);
     }
   }
 
@@ -98,21 +92,20 @@ export class AIService {
   // ---------------------------------------------------------------
 
   /**
-   * Build the system-level context injected at the start of every conversation.
-   * Includes the role definition, available product catalog, and business hours.
+   * Build the system prompt sent to Gemini: the admin-authored persona PLUS a
+   * dynamically appended block with the live product catalog, business hours,
+   * and a RULES block instructing the model to emit the __ESCALATE__ marker
+   * when a human agent is needed.
    */
   async buildSystemContext(): Promise<string> {
-    let ctx =
-      "You are a friendly sales and support agent for 'CodeCraft Solutions', " +
-      "a professional software development company. Your job is to help customers " +
-      "with sales questions, provide pricing, explain services, and assist with " +
-      "any inquiry about software development.\n\n";
+    const persona = (await botConfigService.getSystemPrompt()).trim();
+    let ctx = persona ? `${persona}\n\n` : `${DEFAULT_SYSTEM_PROMPT}\n\n`;
 
-    // Fetch live product catalog
+    // Live product catalog
     try {
       const products = await productService.getAllProducts();
       if (products.length > 0) {
-        ctx += "AVAILABLE PRODUCTS & SERVICES:\n";
+        ctx += "AVAILABLE PRODUCTS & SERVICES (live catalog):\n";
         for (const p of products) {
           ctx += `• ${p.name} — ${p.description} — $${Number(p.price).toFixed(2)} USD\n`;
         }
@@ -123,18 +116,66 @@ export class AIService {
     }
 
     // Business hours
-    ctx += `BUSINESS HOURS: ${scheduleService.getOpeningHours()} (Monday–Friday)\n\n`;
+    ctx += `BUSINESS HOURS: ${scheduleService.getOpeningHours()} (Monday to Friday)\n\n`;
 
+    // Escalation rules
     ctx +=
-      "Guidelines:\n" +
+      "RULES:\n" +
       "• Be polite, professional, and helpful at all times.\n" +
-      "• If you cannot answer a question, or the customer asks to speak to a human, " +
-      `include the word "${ESCALATION_MARKER}" in your response so a human agent can take over.\n` +
-      "• Do NOT make up pricing — refer to the product list above.\n" +
-      "• For anything related to refunds, contracts, legal, or custom NDAs, " +
-      "recommend speaking with a human agent.\n";
+      "• If you cannot answer a question, or the customer asks to speak to a human " +
+      "(agent, person, representative, transfer), or the topic is complex " +
+      "(refunds, contracts, legal, NDAs), include the exact token " +
+      `"${ESCALATION_MARKER}" in your response so a human agent can take over.\n` +
+      "• Do NOT invent pricing — always refer to the product catalog above.\n" +
+      "• Answer in the same language the customer uses.\n";
 
     return ctx;
+  }
+
+  // ---------------------------------------------------------------
+  //  Gemini request helpers
+  // ---------------------------------------------------------------
+
+  /**
+   * Build the `contents` array from the conversation history. Turns alternate
+   * user/model starting with the user. A rolling window of the last ~10 turns
+   * is used; a leading "model" turn is dropped so the array always starts with
+   * a user turn (Gemini requirement).
+   */
+  private buildGeminiContents(conversation: string[]): GeminiContent[] {
+    const window = conversation.slice(-10);
+    const startIndex = conversation.length - window.length;
+    const contents: GeminiContent[] = [];
+
+    for (let i = 0; i < window.length; i++) {
+      const role: GeminiContent["role"] = (startIndex + i) % 2 === 0 ? "user" : "model";
+      contents.push({ role, parts: [{ text: window[i] }] });
+    }
+
+    if (contents.length > 0 && contents[0].role === "model") {
+      contents.shift();
+    }
+
+    return contents;
+  }
+
+  /** Extract the generated text from a Gemini REST response. */
+  private parseGeminiResponse(data: unknown): string {
+    const candidates = (data as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    })?.candidates;
+    const parts = candidates?.[0]?.content?.parts;
+    if (!Array.isArray(parts)) return "";
+    return parts.map((part) => part?.text || "").join("").trim();
+  }
+
+  private getOrCreateConversation(phone: string): string[] {
+    let conversation = this.context.get(phone);
+    if (!conversation) {
+      conversation = [];
+      this.context.set(phone, conversation);
+    }
+    return conversation;
   }
 
   // ---------------------------------------------------------------
@@ -231,8 +272,9 @@ export class AIService {
   //  Fallback responses
   // ---------------------------------------------------------------
 
-  private getFallbackResponse(message: string): string {
+  private async getFallbackResponse(message: string): Promise<string> {
     const lower = message.toLowerCase();
+    const businessName = await botConfigService.getBusinessName();
 
     // Greetings
     if (
@@ -241,7 +283,7 @@ export class AIService {
       lower.includes("buenas") || lower.includes("good morning")
     ) {
       return (
-        "Hello! Welcome to *CodeCraft Solutions* — your software development partner. 👋\n\n" +
+        `Hello! Welcome to *${businessName}* — your software development partner. 👋\n\n` +
         "I can help you with:\n" +
         "• Information about our products and services\n" +
         "• Pricing and quotes\n" +
@@ -330,7 +372,7 @@ export class AIService {
 
     // Default — helpful fallback
     return (
-      "Thank you for your message. I'm your virtual assistant from *CodeCraft Solutions*. 🚀\n\n" +
+      `Thank you for your message. I'm your virtual assistant from *${businessName}*. 🚀\n\n` +
       "To better assist you, please try:\n" +
       "• *MENU* — See all commands\n" +
       "• *CATALOG* — Browse our products\n" +
