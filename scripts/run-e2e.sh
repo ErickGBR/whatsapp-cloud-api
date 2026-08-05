@@ -61,7 +61,6 @@ wait_for_service() {
 }
 
 wait_for_service "app" 120
-wait_for_service "dashboard" 60
 
 echo ""
 
