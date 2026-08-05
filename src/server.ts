@@ -8,6 +8,7 @@ import { sequelize } from "./config/database";
 import { connectRedis, isRedisConfigured } from "./config/redis";
 import { productService } from "./services/product.service";
 import { whatsappWebService } from "./services/whatsapp-web.service";
+import { setIo } from "./services/socket-events";
 import { authService } from "./services/auth.service";
 import { getJwtSecret } from "./config/env";
 import { User } from "./models/user.model";
@@ -215,6 +216,11 @@ async function startServer() {
 
     // Make io accessible to routes via app
     app.set("io", io);
+
+    // Single point that connects the realtime event bus (socket-events) to the
+    // Socket.io server — wa:qr / wa:status / support:new-ticket emissions rely
+    // on this. Must run before whatsappWebService.start() below.
+    setIo(io);
 
     // Iniciar WhatsApp Web client (QR pairing in CLI)
     // Headless deploy: Cloud API is the primary channel; Baileys is optional, so its failure must NOT kill the process

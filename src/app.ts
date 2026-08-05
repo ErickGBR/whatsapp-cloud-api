@@ -1,11 +1,14 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import fs from "fs";
+import path from "path";
 import whatsappRoutes from "./routes/whatsapp.routes";
 import authRoutes from "./routes/auth.routes";
 import ticketRoutes from "./routes/ticket.routes";
 import supportRoutes from "./routes/support.routes";
 import adminRoutes from "./routes/admin.routes";
+import waRoutes from "./routes/wa.routes";
 import { getDashboardOrigin } from "./config/env";
 
 const app = express();
@@ -54,5 +57,30 @@ app.use("/api", authRoutes);
 app.use("/api", ticketRoutes);
 app.use("/api", supportRoutes);
 app.use("/api", adminRoutes);
+app.use("/api", waRoutes);
+
+// ──────────────────────────────────────────────
+// Dashboard static serving (ORDER matters: must run AFTER all API routes so
+// the SPA fallback never shadows /api, /whatsapp, /health or /socket.io).
+// ──────────────────────────────────────────────
+const DASHBOARD_STATIC_DIR = process.env.DASHBOARD_STATIC_DIR;
+if (DASHBOARD_STATIC_DIR) {
+  try {
+    if (fs.existsSync(DASHBOARD_STATIC_DIR)) {
+      app.use(express.static(DASHBOARD_STATIC_DIR));
+      // SPA fallback: serve index.html for any GET that is not an API,
+      // webhook, health or socket.io path.
+      app.get(/^(?!\/(api|whatsapp|health|socket\.io)).*/, (_req, res) => {
+        res.sendFile(path.join(DASHBOARD_STATIC_DIR, "index.html"));
+      });
+    }
+  } catch (error) {
+    // SEC-N1: log message only — never the full error object.
+    console.error(
+      "Dashboard static serving error:",
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+}
 
 export default app;
